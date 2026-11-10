@@ -1,16 +1,25 @@
+import { existsSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
 import { type Img, loadImage } from "./image";
-import { annotate, DEFAULT_COLOR, FONT_PATH, fontSize, SURFACE } from "./render";
+import { annotate, DEFAULT_COLOR, esc, FONT_PATH, fontSize, SURFACE } from "./render";
+import { type Layer, renderScene, type Scene } from "./raster";
 import type { CompareSpec, ImageSpec, Style } from "./types";
 
-export function toPng(width: number, height: number, body: string, systemFonts = false) {
+// Grid rulers read best in a monospace font; load that one file instead of every system font.
+const MONO = ["/System/Library/Fonts/Menlo.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"].filter((f) =>
+  existsSync(f),
+);
+
+export function toPng(width: number, height: number, body: string, mono = false) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">\n${body}\n</svg>`;
   return new Resvg(svg, {
-    font: { fontFiles: [FONT_PATH], loadSystemFonts: systemFonts, defaultFontFamily: "Poah" },
+    font: { fontFiles: mono ? [FONT_PATH, ...MONO] : [FONT_PATH], loadSystemFonts: false, defaultFontFamily: "Poah" },
   })
     .render()
     .asPng();
 }
+
+export const sceneToPng = (scene: Scene) => renderScene(scene, [FONT_PATH]);
 
 export async function compare(spec: CompareSpec, specs: ImageSpec[], dpr?: number) {
   const imgs: Img[] = await Promise.all(specs.map((s) => loadImage(s.image)));
@@ -18,13 +27,14 @@ export async function compare(spec: CompareSpec, specs: ImageSpec[], dpr?: numbe
   const fs = fontSize(Math.max(imgs[0].width, imgs[1].width), Math.max(imgs[0].height, imgs[1].height), style);
   const panels = imgs.map((img, i) => annotate(img, specs[i].notes ?? [], style, { fs, card: true }));
 
-  const ratio = (panels[0].width + panels[1].width) / Math.max(panels[0].height, panels[1].height);
+  const sz = panels.map((p) => [p.scene.width, p.scene.height]);
+  const ratio = (sz[0][0] + sz[1][0]) / Math.max(sz[0][1], sz[1][1]);
   const column = spec.layout === "column" || (spec.layout !== "row" && ratio > 2.6);
   // Panels are never scaled (that would fake a difference). Along the stacking direction the
   // screenshots share one offset, so the two UIs line up exactly.
   const axis = column ? 0 : 1;
   const lead = Math.max(...panels.map((p) => p.offset[axis]));
-  const trail = Math.max(...panels.map((p) => (axis ? p.height : p.width) - p.offset[axis]));
+  const trail = Math.max(...panels.map((p, i) => sz[i][axis] - p.offset[axis]));
   const share = lead + trail;
 
   const pad = Math.round(fs * 0.8);
@@ -33,25 +43,26 @@ export async function compare(spec: CompareSpec, specs: ImageSpec[], dpr?: numbe
   const labels = spec.labels ?? ["before", "after"];
   const color = spec.color ?? DEFAULT_COLOR;
   const parts: string[] = [];
+  const images: Layer[] = [];
   let x = pad;
   let y = pad;
   for (const [i, p] of panels.entries()) {
     const shift = lead - p.offset[axis];
     const px = x + (column ? shift : 0);
     const py = y + title + (column ? 0 : shift);
+    for (const l of p.scene.images) images.push({ ...l, x: l.x + px, y: l.y + py });
     parts.push(
-      `<svg x="${px}" y="${py}" width="${p.width}" height="${p.height}">${p.body}</svg>`,
-      `<text x="${px + p.offset[0]}" y="${py + p.offset[1] - fs * 0.5}" font-family="Poah" font-size="${Math.round(fs * 1.3)}" fill="${color}">${labels[i]}</text>`,
+      `<svg x="${px}" y="${py}" width="${p.scene.width}" height="${p.scene.height}">${p.scene.overlay}</svg>`,
+      `<text x="${px + p.offset[0]}" y="${py + p.offset[1] - fs * 0.5}" font-family="Poah" font-size="${Math.round(fs * 1.3)}" fill="${color}">${esc(labels[i])}</text>`,
     );
-    if (column) y += title + p.height + gap;
-    else x += p.width + gap;
+    if (column) y += title + p.scene.height + gap;
+    else x += p.scene.width + gap;
   }
   const width = Math.ceil(column ? share + pad * 2 : x - gap + pad);
   const height = Math.ceil(column ? y - gap + pad : share + title + pad * 2);
+  const scene: Scene = { width, height, background: SURFACE, images, overlay: parts.join("\n") };
   return {
-    width,
-    height,
-    body: `<rect width="${width}" height="${height}" fill="${SURFACE}"/>\n${parts.join("\n")}`,
+    scene,
     warnings: panels.flatMap((p, i) => p.warnings.map((w) => `${labels[i]}: ${w}`)),
     resolved: {
       before: { image: specs[0].image, notes: panels[0].resolved },

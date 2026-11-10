@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import opentype from "opentype.js";
 import { type Img, pixels } from "./image";
+import type { Scene } from "./raster";
 import type { Box, Mark, Note, Pt, Side, Style } from "./types";
 
 export const FONT_PATH = fileURLToPath(new URL("../fonts/Poah-Regular.ttf", import.meta.url));
@@ -17,7 +18,7 @@ const buf = readFileSync(FONT_PATH);
 const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const r1 = (n: number) => Math.round(n * 10) / 10;
 const expand = (b: Box, p: number): Box => ({ x: b.x - p, y: b.y - p, w: b.w + 2 * p, h: b.h + 2 * p });
 
@@ -33,10 +34,12 @@ function overlap(a: Box, b: Box) {
   return w > 0 && h > 0 ? (w * h) / Math.max(1, a.w * a.h) : 0;
 }
 
-function segmentHitsBox([x1, y1]: Pt, [x2, y2]: Pt, b: Box) {
-  for (let t = 0; t <= 1; t += 0.05) {
-    const x = x1 + (x2 - x1) * t;
-    const y = y1 + (y2 - y1) * t;
+/** Whether a cubic arrow [s, c1, c2, e] passes through a box (the tip's last stretch excluded). */
+function curveHits(p: Pt[], b: Box) {
+  for (let t = 0.05; t <= 0.9; t += 0.05) {
+    const u = 1 - t;
+    const x = u ** 3 * p[0][0] + 3 * u * u * t * p[1][0] + 3 * u * t * t * p[2][0] + t ** 3 * p[3][0];
+    const y = u ** 3 * p[0][1] + 3 * u * u * t * p[1][1] + 3 * u * t * t * p[2][1] + t ** 3 * p[3][1];
     if (x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h) return true;
   }
   return false;
@@ -68,39 +71,62 @@ export function analyze(img: Img) {
     sample((y * W + W - 1) * 4);
   }
   const [br, bg, bb] = [...counts.values()].sort((a, b) => b[3] - a[3])[0];
-  const lum = new Float32Array(W * H);
-  for (let i = 0; i < W * H; i++) lum[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
-  // Integral images: `esum` counts edges (text, borders, icons), `fsum` pixels that differ from the
-  // background (cards, a second page colour). Edges are what notes must avoid; fills only mildly.
-  const fsum = new Uint32Array((W + 1) * (H + 1));
-  const esum = new Uint32Array((W + 1) * (H + 1));
-  const lsum = new Float64Array((W + 1) * (H + 1));
+
+  // Count edges (text, borders, icons) and non-background fill per c x c cell, then build integral
+  // images over the cells. Cells keep memory flat on huge screenshots; queries are box densities,
+  // so a cell of a few pixels changes nothing visible.
+  const c = Math.max(1, Math.ceil(Math.sqrt((W * H) / 2_000_000)));
+  const CW = Math.ceil(W / c);
+  const CH = Math.ceil(H / c);
+  const S = CW + 1;
+  const esum = new Uint32Array(S * (CH + 1));
+  const fsum = new Uint32Array(S * (CH + 1));
+  const ecell = new Uint32Array(CW);
+  const fcell = new Uint32Array(CW);
+  let next = new Uint8Array(W);
+  let cur = new Uint8Array(W);
+  // Integer luma, 0.299/0.587/0.114 scaled by 256.
+  const luma = (row: Uint8Array, y: number) => {
+    for (let x = 0, i = y * W * 4; x < W; x++, i += 4) row[x] = (77 * px[i] + 150 * px[i + 1] + 29 * px[i + 2]) >> 8;
+  };
+  luma(cur, 0);
   for (let y = 0; y < H; y++) {
-    let frow = 0;
-    let erow = 0;
-    let lrow = 0;
-    for (let x = 0; x < W; x++) {
-      const i = y * W + x;
-      const grad =
-        Math.abs(lum[i] - lum[x + 1 < W ? i + 1 : i]) + Math.abs(lum[i] - lum[y + 1 < H ? i + W : i]);
-      const diff =
-        Math.abs(px[i * 4] - br) + Math.abs(px[i * 4 + 1] - bg) + Math.abs(px[i * 4 + 2] - bb);
-      frow += diff > 12 ? 1 : 0;
-      erow += grad > 9 ? 1 : 0;
-      fsum[(y + 1) * (W + 1) + x + 1] = fsum[y * (W + 1) + x + 1] + frow;
-      esum[(y + 1) * (W + 1) + x + 1] = esum[y * (W + 1) + x + 1] + erow;
-      lrow += lum[i];
-      lsum[(y + 1) * (W + 1) + x + 1] = lsum[y * (W + 1) + x + 1] + lrow;
+    if (y + 1 < H) luma(next, y + 1);
+    else next.set(cur);
+    for (let x = 0, i = y * W * 4; x < W; x++, i += 4) {
+      const l = cur[x];
+      const grad = Math.abs(l - cur[x + 1 < W ? x + 1 : x]) + Math.abs(l - next[x]);
+      const diff = Math.abs(px[i] - br) + Math.abs(px[i + 1] - bg) + Math.abs(px[i + 2] - bb);
+      const cx = (x / c) | 0;
+      if (grad > 9) ecell[cx]++;
+      if (diff > 12) fcell[cx]++;
     }
+    if ((y + 1) % c === 0 || y === H - 1) {
+      const cy = (y / c) | 0;
+      let erow = 0;
+      let frow = 0;
+      for (let cx = 0; cx < CW; cx++) {
+        erow += ecell[cx];
+        frow += fcell[cx];
+        const k = (cy + 1) * S + cx + 1;
+        esum[k] = esum[k - S] + erow;
+        fsum[k] = fsum[k - S] + frow;
+      }
+      ecell.fill(0);
+      fcell.fill(0);
+    }
+    [cur, next] = [next, cur];
   }
-  const area = (t: Uint32Array | Float64Array, b: Box, inside = false) => {
-    const x0 = clamp(Math.floor(b.x), 0, W);
-    const y0 = clamp(Math.floor(b.y), 0, H);
-    const x1 = clamp(Math.ceil(b.x + b.w), 0, W);
-    const y1 = clamp(Math.ceil(b.y + b.h), 0, H);
+
+  const area = (t: Uint32Array, b: Box) => {
+    const x0 = clamp(Math.round(b.x / c), 0, CW);
+    const y0 = clamp(Math.round(b.y / c), 0, CH);
+    const x1 = clamp(Math.round((b.x + b.w) / c), 0, CW);
+    const y1 = clamp(Math.round((b.y + b.h) / c), 0, CH);
     if (x1 <= x0 || y1 <= y0) return 0;
-    const n = inside ? (x1 - x0) * (y1 - y0) : b.w * b.h;
-    return (t[y1 * (W + 1) + x1] - t[y0 * (W + 1) + x1] - t[y1 * (W + 1) + x0] + t[y0 * (W + 1) + x0]) / Math.max(1, n);
+    const sum = t[y1 * S + x1] - t[y0 * S + x1] - t[y1 * S + x0] + t[y0 * S + x0];
+    // Normalise by the requested box, so parts outside the image count as empty.
+    return sum / Math.max(1, b.w * b.h, c * c);
   };
   return {
     bg: `rgb(${br},${bg},${bb})`,
@@ -109,7 +135,20 @@ export function analyze(img: Img) {
     fill: (b: Box) => area(fsum, b),
     /** Mean luminance of the part of `b` inside the image; the margin surface counts as light. */
     lum(b: Box) {
-      return overlap(b, { x: 0, y: 0, w: W, h: H }) < 0.5 ? SURFACE_LUM : area(lsum, b, true);
+      if (overlap(b, { x: 0, y: 0, w: W, h: H }) < 0.5) return SURFACE_LUM;
+      const x0 = clamp(Math.floor(b.x), 0, W - 1);
+      const y0 = clamp(Math.floor(b.y), 0, H - 1);
+      const x1 = clamp(Math.ceil(b.x + b.w), x0 + 1, W);
+      const y1 = clamp(Math.ceil(b.y + b.h), y0 + 1, H);
+      const step = Math.max(1, Math.floor(Math.sqrt(((x1 - x0) * (y1 - y0)) / 900)));
+      let sum = 0;
+      let n = 0;
+      for (let y = y0; y < y1; y += step)
+        for (let x = x0, i = (y * W + x0) * 4; x < x1; x += step, i += 4 * step) {
+          sum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2];
+          n++;
+        }
+      return sum / Math.max(1, n);
     },
     /** Edge density of the busiest fs-sized cell, so one corner of text under a label still counts. */
     edgePeak(b: Box, fs: number) {
@@ -334,9 +373,7 @@ function mark(kind: Mark, T: Box, fs: number, seed: string) {
 }
 
 export type Annotated = {
-  width: number;
-  height: number;
-  body: string;
+  scene: Scene;
   fs: number;
   warnings: string[];
   resolved: Note[];
@@ -365,27 +402,51 @@ const inBox = ([x, y]: Pt, b: Box) => x > b.x && x < b.x + b.w && y > b.y && y <
 export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout: Layout = {}): Annotated {
   const W = img.width;
   const H = img.height;
-  const fs = layout.fs ?? fontSize(W, H, { ...style, dpr: style.dpr ?? img.dpr });
+  const warnings: string[] = [];
+  const wanted = layout.fs ?? fontSize(W, H, { ...style, dpr: style.dpr ?? img.dpr });
+  // A note taller than a quarter of the screenshot is never what anyone meant.
+  const maxFs = Math.max(16, Math.round(Math.max(W, H) / 4));
+  const fs = Math.min(wanted, maxFs);
+  if (fs < wanted) warnings.push(`font size ${wanted} is too big for a ${W}x${H} image, using ${fs}`);
   const sw = r1(Math.max(1.5, fs / 11));
   const A = analyze(img);
-  const warnings: string[] = [];
   const els: string[] = [];
   const bounds: Box[] = [];
   const placed: Box[] = [];
   const arrows: [Pt, Pt][] = [];
   const arrowPts: Pt[] = [];
+  /** Per note, for the final check: its label box and the sampled points of its arrow. */
+  const labels: (Box | null)[] = [];
+  const paths: Pt[][] = [];
   const resolved: Note[] = [];
 
-  const targets = notes.map((n) => {
+  const image: Box = { x: 0, y: 0, w: W, h: H };
+  // Labels may sit in a margin around the screenshot, but not arbitrarily far from it.
+  const reach = expand(image, Math.max(W, H));
+  const targets = notes.map((n, i) => {
     if (!n.to) return null;
-    if (n.to.length !== 2 && n.to.length !== 4) throw new Error(`"to" must be [x, y] or [x, y, w, h]: ${n.text}`);
-    const [x, y, w = 0, h = 0] = n.to;
-    return { box: { x, y, w, h }, point: n.to.length === 2 };
+    if (n.to.length !== 2 && n.to.length !== 4) throw new Error(`note ${i + 1}: "to" must be [x, y] or [x, y, w, h]`);
+    const [x0, y0, w0 = 0, h0 = 0] = n.to;
+    // Accept boxes drawn from any corner.
+    const box = { x: Math.min(x0, x0 + w0), y: Math.min(y0, y0 + h0), w: Math.abs(w0), h: Math.abs(h0) };
+    const hit = n.to.length === 2 ? inBox([x0, y0], expand(image, 1)) : overlap(expand(box, 1), image) > 0;
+    if (!hit) throw new Error(`note ${i + 1} ("${n.text.slice(0, 30)}"): "to" [${n.to.join(", ")}] lies outside the ${W}x${H} image`);
+    return { box, point: n.to.length === 2 };
   });
-  const obstacles = targets.flatMap((t) => (t ? [expand(t.box, t.point ? fs * 0.6 : fs * 0.25)] : []));
+  const none: Box = { x: -1e9, y: -1e9, w: 0, h: 0 };
+  const obstacles = targets.map((t) => (t ? expand(t.box, t.point ? fs * 0.6 : fs * 0.25) : none));
 
   notes.forEach((n, i) => {
-    const L = prepare(n.text, fs, n.wrap ?? 11, warnings);
+    let L = prepare(n.text, fs, n.wrap ?? 11, warnings);
+    if (L.lines.length > 4) {
+      if (n.wrap === undefined) {
+        // Aim for a block roughly four times wider than tall instead of a tall column.
+        const area = L.lines.length * L.w * L.lh;
+        L = prepare(n.text, fs, Math.sqrt(area * 4) / fs, []);
+      }
+      if (L.lines.length > 4)
+        warnings.push(`"${L.lines[0].slice(0, 30)}" runs to ${L.lines.length} lines; notes read best at 2 to 8 words`);
+    }
     const lh = L.lh * L.lines.length;
     const t = targets[i];
     let T = t?.box;
@@ -393,7 +454,12 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
     if (mk && n.mark !== "underline") T = mk.box;
 
     let lb: Box;
-    if (Array.isArray(n.at)) lb = { x: n.at[0], y: n.at[1], w: L.w, h: lh };
+    if (Array.isArray(n.at)) {
+      lb = { x: n.at[0], y: n.at[1], w: L.w, h: lh };
+      const inside = lb.x >= reach.x && lb.y >= reach.y && lb.x + lb.w <= reach.x + reach.w && lb.y + lb.h <= reach.y + reach.h;
+      if (!inside)
+        throw new Error(`note ${i + 1} ("${n.text.slice(0, 30)}"): "at" [${n.at.join(", ")}] is too far from the ${W}x${H} image`);
+    }
     else if (T) {
       const ranked = candidates(T, L, fs, n.at).map((c) => {
         const pad = expand(c.box, fs * 0.3);
@@ -401,7 +467,11 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         const out = A.outside(pad);
         // Fully on the screenshot or fully in the margin; straddling its edge looks broken.
         s += out * 12 + (out > 0.01 ? 6 : 0) + (out > 0.02 && out < 0.98 ? 40 : 0);
-        for (const o of [...placed, ...obstacles]) s += overlap(pad, o) * 400;
+        for (const o of placed) s += overlap(pad, o) * 400;
+        // Hiding any part of another note's target is as bad as hiding most of it.
+        obstacles.forEach((o, k) => {
+          if (k !== i) s += Math.max(overlap(pad, o), overlap(o, pad)) * 400;
+        });
         s += Math.abs(c.d / fs - 3.2) * (c.d / fs > 3.2 ? 0.8 : 1.5) + (c.side === "above" || c.side === "below" ? 2.5 : 0);
         const a = anchor(c.box, L, T, !!t?.point, fs);
         const curve = arrow(a.s, a.dir, a.e, n.bend, fs).pts.slice(0, 4);
@@ -409,7 +479,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         // Long arrows sweeping across the UI read worse than a nearby label, even when they miss text.
         s += Math.max(0, Math.hypot(a.e[0] - a.s[0], a.e[1] - a.s[1]) / fs - 5) * 1.5;
         for (const [p, q] of arrows) if (segmentsCross(a.s, a.e, p, q)) s += 15;
-        for (const o of placed) if (segmentHitsBox(a.s, a.e, o)) s += 60;
+        for (const o of placed) if (curveHits(curve, o)) s += 60;
         if (arrowPts.some((p) => inBox(p, pad))) s += 80;
         return { ...c, s };
       });
@@ -432,6 +502,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         `"${L.lines[0]}" (label box [${[lb.x, lb.y, lb.w, lb.h].map(Math.round).join(", ")}]) ${crowded ? "covers or touches content" : "collides with another note or arrow"}; move it with "at"`,
       );
     placed.push(expand(lb, fs * 0.6));
+    labels[i] = lb;
     bounds.push(lb);
 
     // Ink follows what it is drawn on: deep blue on light, lifted blue on dark, in between when mixed.
@@ -465,7 +536,10 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         `<path d="${ar.head}" fill="${color}" stroke="${color}" stroke-width="${r1(sw * 0.6)}" stroke-linejoin="round"/>`,
       );
       arrows.push([a.s, a.e]);
-      for (let k = 0; k <= 1; k += 0.05) arrowPts.push(cubicAt(ar.pts, k));
+      const samples: Pt[] = [];
+      for (let k = 0; k <= 0.9; k += 0.05) samples.push(cubicAt(ar.pts, k));
+      arrowPts.push(...samples);
+      paths[i] = samples;
       // One or two hits is the arrow entering a card to reach its target; more is crossing text.
       if (process.env.ANNOTATE_DEBUG)
         console.error(`arrow "${L.lines[0]}" crossings=${crossings(A, ar.pts.slice(0, 4), fs)}`, ar.pts.slice(0, 4).map((p) => p.map(Math.round)));
@@ -487,6 +561,11 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
     });
   });
 
+  paths.forEach((pts, i) => {
+    const hit = labels.findIndex((lb, k) => k !== i && lb && pts.some((p) => inBox(p, lb)));
+    if (hit >= 0) warnings.push(`the arrow of note ${i + 1} runs through the label of note ${hit + 1}; move one of them with "at"`);
+  });
+
   // Anything drawn outside the screenshot turns it into a card on the neutral surface.
   const m = fs * 0.6;
   let minX = Math.min(0, ...bounds.map((b) => b.x - m));
@@ -502,18 +581,28 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
     maxY = Math.max(maxY, H + p);
   }
   const card = extended || !!layout.card;
-  const width = Math.ceil(maxX - minX);
-  const height = Math.ceil(maxY - minY);
-  const radius = r1(fs * 0.35);
-  const id = `img${Math.random().toString(36).slice(2, 8)}`;
-  const body = [
-    card ? `<rect width="${width}" height="${height}" fill="${SURFACE}"/>` : "",
-    `<g transform="translate(${r1(-minX)},${r1(-minY)})">`,
+  // Whole-pixel offset, so the screenshot is copied 1:1 and never resampled.
+  const ox = Math.ceil(-minX);
+  const oy = Math.ceil(-minY);
+  const width = Math.ceil(maxX) + ox;
+  const height = Math.ceil(maxY) + oy;
+  if (width > 16384 || height > 16384 || width * height > 80e6)
+    throw new Error(`the notes would need a ${width}x${height} canvas; shorten them or lower "size"`);
+  const radius = card ? r1(fs * 0.35) : 0;
+  const overlay = [
+    `<g transform="translate(${ox},${oy})">`,
     card
-      ? `<clipPath id="${id}"><rect width="${W}" height="${H}" rx="${radius}"/></clipPath><image href="${img.href}" width="${W}" height="${H}" clip-path="url(#${id})"/><rect width="${W}" height="${H}" rx="${radius}" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="${r1(Math.max(1, fs / 26))}"/>`
-      : `<image href="${img.href}" width="${W}" height="${H}"/>`,
+      ? `<rect width="${W}" height="${H}" rx="${radius}" fill="none" stroke="rgba(0,0,0,0.12)" stroke-width="${r1(Math.max(1, fs / 26))}"/>`
+      : "",
     ...els,
     "</g>",
   ].join("\n");
-  return { width, height, body, fs, warnings, resolved, extended, offset: [-minX, -minY] };
+  const scene: Scene = {
+    width,
+    height,
+    background: card ? SURFACE : undefined,
+    images: [{ img, x: ox, y: oy, radius }],
+    overlay,
+  };
+  return { scene, fs, warnings, resolved, extended, offset: [ox, oy] };
 }

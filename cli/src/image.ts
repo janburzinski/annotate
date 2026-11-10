@@ -1,6 +1,6 @@
 import { Resvg } from "@resvg/resvg-js";
 
-export type Img = { href: string; width: number; height: number; bytes: Uint8Array; dpr?: number };
+export type Img = { href: string; width: number; height: number; bytes: Uint8Array; dpr?: number; px?: Uint8Array };
 
 const PNG_SIG = 8;
 
@@ -72,7 +72,10 @@ export async function loadImage(path: string): Promise<Img> {
   return { href: `data:${mime};base64,${Buffer.from(bytes).toString("base64")}`, width, height, bytes, dpr };
 }
 
+/** Decoded RGBA (premultiplied), cached so analysis and the final render share one decode. */
 export function pixels(img: Img): Uint8Array {
+  if (img.px) return img.px;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${img.width}" height="${img.height}"><image href="${img.href}" width="${img.width}" height="${img.height}"/></svg>`;
-  return new Resvg(svg, { font: { loadSystemFonts: false } }).render().pixels;
+  img.px = new Resvg(svg, { font: { loadSystemFonts: false } }).render().pixels;
+  return img.px;
 }

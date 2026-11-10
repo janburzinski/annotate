@@ -23,7 +23,7 @@ const INSTALLED = [
 ];
 
 /** Any Chromium will do: env override, Playwright's downloads (newest first), then installed browsers. */
-function findBrowser() {
+export function findBrowser(quiet = false) {
   const env = process.env.ANNOTATE_BROWSER;
   if (env) return env;
   for (const dir of CACHES) {
@@ -34,7 +34,7 @@ function findBrowser() {
     }
   }
   const found = INSTALLED.find((p) => existsSync(p));
-  if (found) return found;
+  if (found || quiet) return found;
   throw new Error("no Chromium found: run `bunx playwright install chromium-headless-shell` or set ANNOTATE_BROWSER");
 }
 
@@ -51,7 +51,12 @@ export async function capture(spec: CaptureSpec, shotPath: string) {
       storageState: spec.storageState,
     });
     const page = await context.newPage();
-    await page.goto(spec.url, { waitUntil: "networkidle" });
+    const res = await page.goto(spec.url, { waitUntil: "load", timeout: 30000 }).catch((e: Error) => {
+      throw new Error(`could not load ${spec.url}: ${e.message.split("\n")[0]}`);
+    });
+    if (res && res.status() >= 400) console.error(`annotate: warning: ${spec.url} answered ${res.status()}`);
+    // Pages with analytics or polling never go idle; give them a moment, not 30 seconds.
+    await page.waitForLoadState("networkidle", { timeout: 4000 }).catch(() => {});
     if (typeof spec.wait === "number") await page.waitForTimeout(spec.wait);
     else if (spec.wait) await page.locator(spec.wait).first().waitFor();
     if (spec.script) await page.evaluate(spec.script);
@@ -90,23 +95,34 @@ export async function capture(spec: CaptureSpec, shotPath: string) {
     let clip: { x: number; y: number; width: number; height: number } | undefined;
     if (spec.clip) {
       const [x, y, w, h] = typeof spec.clip === "string" ? await docBox(spec.clip, false) : spec.clip;
+      if (!(w > 0 && h > 0)) throw new Error(`clip ${JSON.stringify(spec.clip)} has no visible area`);
       const p = spec.padding ?? 24;
       clip = { x: Math.max(0, x - p), y: Math.max(0, y - p), width: w + p * 2, height: h + p * 2 };
     }
-    const fullPage = spec.fullPage ?? !!clip;
-    const origin = clip ?? (fullPage ? { x: 0, y: 0 } : await page.evaluate(() => ({ x: scrollX, y: scrollY })));
-
-    const notes: Note[] = [];
+    // Measure every target first: one below the fold switches to a full-page shot, so its arrow
+    // still has something to land on.
+    const boxes: (number[] | null)[] = [];
     for (const n of spec.notes ?? []) {
-      const { target, ...rest } = n;
-      if (!target) {
-        notes.push({ ...rest, to: rest.to?.map((v) => Math.round(v * dpr)) });
+      if (!n.target) {
+        boxes.push(null);
         continue;
       }
-      const [x, y, w, h] = await docBox(target);
-      const box = [x - origin.x, y - origin.y, w, h].map((v) => Math.round(v * dpr));
-      notes.push({ ...rest, to: rest.to ? rest.to.map((v) => Math.round(v * dpr)) : box });
+      const b = await docBox(n.target);
+      if (!(b[2] > 0 && b[3] > 0)) throw new Error(`target ${n.target} is not visible (it has no size on the page)`);
+      boxes.push(b);
     }
+    const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+    const offscreen = boxes.some(
+      (b) => b && (b[1] + b[3] > scroll.y + viewport.height || b[1] < scroll.y || b[0] + b[2] > scroll.x + viewport.width),
+    );
+    const fullPage = spec.fullPage ?? (!!clip || offscreen);
+    const origin = clip ?? (fullPage ? { x: 0, y: 0 } : scroll);
+
+    const notes: Note[] = (spec.notes ?? []).map(({ target, ...rest }, i) => {
+      const b = boxes[i];
+      if (rest.to || !b) return { ...rest, to: rest.to?.map((v) => Math.round(v * dpr)) };
+      return { ...rest, to: [b[0] - origin.x, b[1] - origin.y, b[2], b[3]].map((v) => Math.round(v * dpr)) };
+    });
 
     const png = await page.screenshot({ clip, fullPage, animations: "disabled", caret: "hide" });
     await Bun.write(shotPath, withDpr(new Uint8Array(png), dpr));

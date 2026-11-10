@@ -55,6 +55,11 @@ Use `"image": "shot.png"` with `"to": [x, y, w, h]` boxes for existing screensho
 `after` keys for a comparison. Labels are placed in empty space automatically, and the CLI warns
 when a note covers content.
 
+## Development
+
+`cd cli && bun test` runs the CLI against generated screenshots, including bad input and, when a
+Chromium is installed, page capture. `bun run check` type-checks.
+
 ## License
 
 Poah is by Lakshay, under the [SIL Open Font License](cli/fonts/OFL.txt).

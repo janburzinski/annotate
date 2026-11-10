@@ -32,7 +32,8 @@ Arrows are only as good as their target boxes. Never guess pixel positions from 
 **Selectors.** Plain text blocks (a `<p>` or `<label>` spanning the row) snap to where their text
 actually is. Elements with their own visible box (buttons, inputs, cards, images) keep that box.
 Prefer the specific element (`#err`, `label[for=email]`, `text=Forgot password?`,
-`button >> nth=1`) over containers.
+`button >> nth=1`) over containers. A target below the fold switches the capture to a full-page
+screenshot automatically; a hidden target (no size on the page) is an error.
 
 **Own browser tool.** When you already drive a browser (Playwright, a browse tool), take the
 screenshot there and read boxes with `locator.boundingBox()`. Multiply every value by
@@ -131,6 +132,8 @@ Spec-wide settings:
    The warnings mean:
    - `covers or touches content` or `collides with another note or arrow`: move that label with `at`. The warning includes its box.
    - `arrow … crosses content`: change `at`, or use a smaller `bend`.
+   - `the arrow of note N runs through the label of note M`: move one of the two with `at`.
+   - `runs to N lines`: the note is too long. Shorten it; long notes are widened, never cut.
 2. Look at the PNG yourself. Check that every arrow lands on its own target, that no label covers
    something important or sits so close to UI text that it reads as part of it, and that the notes
    are legible.
@@ -152,4 +155,8 @@ asked.
 - `selector not found`: the page differs from what you expected. Inspect it, then fix the selector or `wait`.
 - Canvas grew (`extended: true`): some notes sit in the margin, so the screenshot became a rounded card on a light surface (like a designer's callout board). That is intended; pin `at` inside if you need the original size.
 - A `to` inside a capture spec is in CSS px relative to the captured area; prefer `target`.
+- Errors name the note and the field (`note 2: "to" ... lies outside the 1400x900 image`). The CLI
+  refuses targets outside the image, labels pinned far away, zero or negative `size` and `wrap`,
+  unknown `mark` or `at` values, colours that are not hex, CSS names, `rgb()` or `hsl()`, and an
+  `out` path that would overwrite an input screenshot.
 - Automatic placement chose oddly: run with `ANNOTATE_DEBUG=1` to print the top candidate spots and their scores to stderr.

@@ -2,10 +2,11 @@
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { capture } from "./capture";
-import { compare, grid, resolvePath, toPng } from "./compose";
+import { compare, grid, resolvePath, sceneToPng, toPng } from "./compose";
 import { loadImage } from "./image";
 import { annotate, DEFAULT_COLOR } from "./render";
 import type { CaptureSpec, CompareSpec, RenderSpec } from "./types";
+import { checkSpec, parseRegion, parseStep } from "./validate";
 
 const USAGE = `annotate: handwritten (Poah) notes and arrows on screenshots
 
@@ -27,29 +28,44 @@ Note: { "text", "to": [x,y] | [x,y,w,h], "at"?: [x,y] | "left|right|above|below"
 Spec-wide: "color" (default ${DEFAULT_COLOR}), "size" (font px), "dpr", "frame".
 See SKILL.md for the full guide.`;
 
-const { values, positionals } = parseArgs({
-  allowPositionals: true,
-  options: {
-    out: { type: "string" },
-    step: { type: "string" },
-    region: { type: "string" },
-    frame: { type: "boolean" },
-    help: { type: "boolean", short: "h" },
-  },
-});
+const args = () =>
+  parseArgs({
+    allowPositionals: true,
+    allowNegative: true,
+    options: {
+      out: { type: "string" },
+      step: { type: "string" },
+      region: { type: "string" },
+      frame: { type: "boolean" },
+      help: { type: "boolean", short: "h" },
+    },
+  });
+
+/** Never let an output path overwrite one of the inputs. */
+function guardOut(out: string, inputs: string[]) {
+  const o = resolve(out);
+  if (inputs.some((i) => resolve(i) === o)) throw new Error(`output ${out} would overwrite an input image`);
+}
 
 async function main() {
+  let parsed: ReturnType<typeof args>;
+  try {
+    parsed = args();
+  } catch (e) {
+    throw new Error(`${(e as Error).message.split("\n")[0]} (see annotate --help)`);
+  }
+  const { values, positionals } = parsed;
   const [first, second] = positionals;
   if (values.help || !first) return console.log(USAGE);
 
   if (first === "grid") {
     if (!second) throw new Error("usage: annotate grid <image>");
     const img = await loadImage(second);
-    const region = values.region?.split(",").map(Number);
-    if (region && (region.length !== 4 || region.some(Number.isNaN))) throw new Error("--region must be x,y,w,h");
-    const g = grid(img, values.step ? Number(values.step) : undefined, region);
+    const region = parseRegion(values.region, img.width, img.height);
+    const g = grid(img, parseStep(values.step), region);
     const suffix = region ? `.grid-${region.join("-")}.png` : ".grid.png";
     const out = values.out ?? second.replace(/(\.\w+)?$/, suffix);
+    guardOut(out, [second]);
     await Bun.write(out, toPng(g.width, g.height, g.body, true));
     return report({
       out: resolve(out),
@@ -59,8 +75,15 @@ async function main() {
     });
   }
 
+  if (first !== "-" && !(await Bun.file(first).exists())) throw new Error(`spec not found: ${first}`);
   const raw = first === "-" ? await Bun.stdin.text() : await Bun.file(first).text();
-  const spec = JSON.parse(raw);
+  let spec: Partial<RenderSpec & CompareSpec & CaptureSpec>;
+  try {
+    spec = JSON.parse(raw);
+  } catch (e) {
+    throw new Error(`${first === "-" ? "stdin" : first} is not valid JSON (${(e as Error).message})`);
+  }
+  checkSpec(spec);
   const base = first === "-" ? process.cwd() : dirname(resolve(first));
   const framed = values.frame ?? spec.frame;
 
@@ -88,14 +111,17 @@ async function main() {
       await side(cs.before, out.replace(/(\.\w+)?$/, ".before.png")),
       await side(cs.after, out.replace(/(\.\w+)?$/, ".after.png")),
     ];
+    guardOut(out, sides.map((x) => x.image));
     const c = await compare(cs, sides, sides[0].dpr);
-    await Bun.write(out, toPng(c.width, c.height, c.body));
-    return report({ out, width: c.width, height: c.height, warnings: c.warnings, resolved: c.resolved });
+    await Bun.write(out, sceneToPng(c.scene));
+    return report({ out, width: c.scene.width, height: c.scene.height, warnings: c.warnings, resolved: c.resolved });
   }
 
-  const fallback = "url" in spec ? "capture.png" : String(spec.image).replace(/(\.\w+)?$/, ".annotated.png");
+  const isCapture = typeof spec.url === "string";
+  const fallback = isCapture ? "capture.png" : String(spec.image).replace(/(\.\w+)?$/, ".annotated.png");
   const out = resolvePath(base, values.out ?? spec.out ?? fallback);
-  const r = await side(spec, out);
+  if (!isCapture) guardOut(out, [resolvePath(base, spec.image as string)]);
+  const r = await side(spec as RenderSpec | CaptureSpec, out);
   const img = await loadImage(r.image);
   const a = annotate(
     img,
@@ -103,11 +129,11 @@ async function main() {
     { color: r.color, size: r.size, dpr: r.dpr },
     framed ? { card: true, pad: 1.2 } : {},
   );
-  await Bun.write(out, toPng(a.width, a.height, a.body));
+  await Bun.write(out, sceneToPng(a.scene));
   report({
     out,
-    width: a.width,
-    height: a.height,
+    width: a.scene.width,
+    height: a.scene.height,
     fontSize: a.fs,
     extended: a.extended,
     warnings: a.warnings,
