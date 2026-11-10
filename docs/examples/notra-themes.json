@@ -1,0 +1,59 @@
+{
+  "out": "../notra-themes.png",
+  "labels": [
+    "light",
+    "dark"
+  ],
+  "layout": "column",
+  "before": {
+    "url": "https://www.usenotra.com/pricing",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "colorScheme": "light",
+    "wait": 1500,
+    "script": "for (const el of document.querySelectorAll('body *')) { const t = el.textContent?.trim() ?? ''; if ((/^We value your privacy/.test(t) || /^Secured by/.test(t)) && el.getBoundingClientRect().width < 600) { let n = el; while (n.parentElement && n.parentElement.getBoundingClientRect().width < 600) n = n.parentElement; n.style.display = 'none'; } }",
+    "clip": [
+      24,
+      560,
+      1232,
+      830
+    ],
+    "padding": 0,
+    "notes": [
+      {
+        "text": "the recommended plan is the only filled card",
+        "target": "h3:has-text('Growth') >> nth=0"
+      }
+    ]
+  },
+  "after": {
+    "url": "https://www.usenotra.com/pricing",
+    "viewport": {
+      "width": 1280,
+      "height": 900
+    },
+    "colorScheme": "dark",
+    "wait": 1500,
+    "script": "for (const el of document.querySelectorAll('body *')) { const t = el.textContent?.trim() ?? ''; if ((/^We value your privacy/.test(t) || /^Secured by/.test(t)) && el.getBoundingClientRect().width < 600) { let n = el; while (n.parentElement && n.parentElement.getBoundingClientRect().width < 600) n = n.parentElement; n.style.display = 'none'; } }",
+    "clip": [
+      24,
+      560,
+      1232,
+      830
+    ],
+    "padding": 0,
+    "notes": [
+      {
+        "text": "the purple card still leads on dark",
+        "target": "h3:has-text('Growth') >> nth=0"
+      },
+      {
+        "text": "other cards turn grey, not black",
+        "target": "h3:has-text('Enterprise') >> nth=0",
+        "at": "above"
+      }
+    ]
+  }
+}

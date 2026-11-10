@@ -14,9 +14,9 @@ handwritten notes like these and drew Poah from his own handwriting. Go follow h
 
 | Before and after | Light and dark |
 | --- | --- |
-| ![Invite form before and after](docs/example.png) | ![GitHub sign-in in light and dark mode](docs/github-dark.png) |
+| ![Invite form before and after](docs/example.png) | ![Notra pricing cards in light and dark mode](docs/notra-themes.png) |
 
-![Hacker News with notes](docs/hackernews.png)
+![Notra plan comparison table with notes](docs/notra-pricing.png)
 
 The specs are in [`docs/examples`](docs/examples).
 

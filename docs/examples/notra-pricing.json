@@ -1,0 +1,26 @@
+{
+  "url": "https://www.usenotra.com/pricing",
+  "out": "../notra-pricing.png",
+  "viewport": {
+    "width": 1280,
+    "height": 900
+  },
+  "wait": 1500,
+  "script": "for (const el of document.querySelectorAll('body *')) { const t = el.textContent?.trim() ?? ''; if ((/^We value your privacy/.test(t) || /^Secured by/.test(t)) && el.getBoundingClientRect().width < 600) { let n = el; while (n.parentElement && n.parentElement.getBoundingClientRect().width < 600) n = n.parentElement; n.style.display = 'none'; } }",
+  "clip": "table",
+  "padding": 24,
+  "notes": [
+    {
+      "text": "growth column is tinted so the pick stands out",
+      "target": "th:has-text('Growth')"
+    },
+    {
+      "text": "section rows break the long list into groups",
+      "target": "th:has-text('AI traffic analytics')"
+    },
+    {
+      "text": "enterprise just says custom",
+      "target": "td:has-text('Custom') >> nth=0"
+    }
+  ]
+}
