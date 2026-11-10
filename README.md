@@ -3,12 +3,12 @@
 Handwritten notes and arrows on screenshots, set in [Poah](https://poah.laks.sh/). Your coding
 agent writes a small JSON spec and the CLI draws it.
 
-![Sign-in form with handwritten notes](docs/signin.png)
+![Notra homepage with handwritten notes](docs/notra.png)
 
 ## Credit
 
-The style and the font come from [Lakshay](https://x.com/blakssh). He marks up his design work like
-the image above and drew Poah from his own handwriting. Go follow him.
+The style and the font come from [Lakshay](https://x.com/blakssh). He marks up his design work with
+handwritten notes like these and drew Poah from his own handwriting. Go follow him.
 
 ## Examples
 

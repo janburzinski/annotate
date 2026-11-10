@@ -100,7 +100,7 @@ export async function capture(spec: CaptureSpec, shotPath: string) {
     for (const n of spec.notes ?? []) {
       const { target, ...rest } = n;
       if (!target) {
-        notes.push(rest);
+        notes.push({ ...rest, to: rest.to?.map((v) => Math.round(v * dpr)) });
         continue;
       }
       const [x, y, w, h] = await docBox(target);

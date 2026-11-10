@@ -1,0 +1,33 @@
+{
+  "image": "notra-home.png",
+  "out": "../notra.png",
+  "notes": [
+    {
+      "text": "logos stand in for the brand names",
+      "to": [
+        789,
+        320,
+        112,
+        112
+      ]
+    },
+    {
+      "text": "one loud action, the other stays quiet",
+      "to": [
+        917,
+        923,
+        295,
+        44
+      ]
+    },
+    {
+      "text": "the real product starts above the fold",
+      "to": [
+        258,
+        1166,
+        2044,
+        554
+      ]
+    }
+  ]
+}
