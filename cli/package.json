@@ -1,0 +1,18 @@
+{
+  "name": "annotate",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "annotate": "src/index.ts"
+  },
+  "dependencies": {
+    "@resvg/resvg-js": "^2.6.2",
+    "opentype.js": "^2.0.0",
+    "playwright-core": "^1.65.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/opentype.js": "^1.3.10",
+    "typescript": "^7.0.2"
+  }
+}
