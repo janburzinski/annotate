@@ -4,9 +4,29 @@ Handwritten notes and arrows on screenshots, in the style of a designer's callou
 agent skill plus a small CLI: an agent (Claude Code, OpenCode) writes a short JSON spec,
 the CLI renders it, and the agent checks the result before showing it to you.
 
-![A before/after of an invite form with handwritten blue notes](docs/example.png)
+![A sign-in form with handwritten blue notes about icon size, error placement and optical alignment](docs/signin.png)
 
-The notes are set in [Poah](https://poah.laks.sh/), a handwriting font by Lakshay.
+## Shout-out to Lakshay
+
+This whole thing exists because of [Lakshay](https://x.com/blakssh). He annotates his own design
+work with short handwritten notes and arrows, and the look of this tool copies his. He also drew
+[Poah](https://poah.laks.sh/), the handwriting font every note here is set in: his own
+handwriting, letter by letter on an iPad, released for free under the OFL. The sign-in example
+above recreates one of his annotations. If you like how these look, go follow him on
+[X](https://x.com/blakssh) and grab Poah for your own work.
+
+## Examples
+
+| Before/after | Light vs dark |
+| --- | --- |
+| ![Invite form before and after: label spacing, error placement, button order](docs/example.png) | ![GitHub sign-in in light and dark mode with notes on contrast](docs/github-dark.png) |
+
+A dense page, with every label placed automatically in free space:
+
+![Hacker News front page with notes on the header colour, upvote tap targets and comment counts](docs/hackernews.png)
+
+The specs for these live in [`docs/examples/`](docs/examples). Re-render any of them with
+`annotate docs/examples/signin.json`.
 
 ## What it does
 
@@ -118,4 +138,5 @@ docs/             README assets
 ## Licence
 
 Poah is by [Lakshay](https://x.com/blakssh) and licensed under the
-[SIL Open Font License 1.1](cli/fonts/OFL.txt).
+[SIL Open Font License 1.1](cli/fonts/OFL.txt). It is bundled unmodified so the CLI works offline;
+get the full download (OTF, TTF, WOFF, WOFF2) from [poah.laks.sh](https://poah.laks.sh/).

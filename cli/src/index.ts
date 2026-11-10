@@ -72,7 +72,12 @@ async function main() {
       return { ...s, image: resolvePath(base, s.image) };
     }
     const shot = out.replace(/(\.\w+)?$/, ".raw.png");
-    const { notes, dpr } = await capture({ ...s, storageState: s.storageState && resolvePath(base, s.storageState) }, shot);
+    // A bare path is a local HTML file, relative to the spec like every other path.
+    const url = /^[a-z][\w+.-]*:/i.test(s.url) ? s.url : `file://${resolvePath(base, s.url)}`;
+    const { notes, dpr } = await capture(
+      { ...s, url, storageState: s.storageState && resolvePath(base, s.storageState) },
+      shot,
+    );
     return { image: shot, notes, dpr, color: s.color, size: s.size, frame: s.frame };
   };
 

@@ -25,7 +25,7 @@ Arrows are only as good as their target boxes. Never guess pixel positions from 
 
 | Source | Use | Accuracy |
 | --- | --- | --- |
-| Page reachable by URL (`http://localhost:…`, public site, `file://…`) | capture spec with CSS `target` selectors | exact |
+| Page reachable by URL (`http://localhost:…`, public site, `file://…`, or a bare path to a local `.html` file, resolved against the spec) | capture spec with CSS `target` selectors | exact |
 | Page behind a login | `storageState` in the capture spec, or your own browser tool (below) | exact |
 | Any other image (user upload, mobile, design file) | `annotate grid`, read boxes off the rulers, then render | ±5px with `--region` |
 

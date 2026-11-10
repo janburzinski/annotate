@@ -1,0 +1,12 @@
+{
+  "url": "signin.html",
+  "out": "../signin.png",
+  "clip": "#form",
+  "padding": 32,
+  "viewport": { "width": 900, "height": 700 },
+  "notes": [
+    { "text": "icon size relative to label", "target": "#info" },
+    { "text": "keeping the error msg close to the affected entity", "target": "#error" },
+    { "text": "optical alignment for lock icon", "target": "#lock" }
+  ]
+}

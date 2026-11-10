@@ -1,0 +1,19 @@
+{
+  "out": "../example.png",
+  "before": {
+    "url": "invite-before.html", "clip": "#card", "viewport": { "width": 800, "height": 600 },
+    "notes": [
+      { "text": "label floats away from its field", "target": "label" },
+      { "text": "error too far from the input", "target": "#err" },
+      { "text": "primary action on the left", "target": "#send" }
+    ]
+  },
+  "after": {
+    "url": "invite-after.html", "clip": "#card", "viewport": { "width": 800, "height": 600 },
+    "notes": [
+      { "text": "label tight to its field", "target": "label" },
+      { "text": "error sits right under the input", "target": "#err" },
+      { "text": "primary action last, on the right", "target": "#send" }
+    ]
+  }
+}

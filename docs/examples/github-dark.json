@@ -1,0 +1,12 @@
+{
+  "out": "../github-dark.png",
+  "before": {
+    "url": "https://github.com/login", "clip": "main form", "colorScheme": "light",
+    "notes": [{ "text": "harsh white in a dark room", "target": "input[type=submit]", "mark": "circle" }]
+  },
+  "after": {
+    "url": "https://github.com/login", "clip": "main form", "colorScheme": "dark",
+    "notes": [{ "text": "inputs keep their contrast", "target": "#login_field", "mark": "underline" }]
+  },
+  "labels": ["light", "dark"]
+}
