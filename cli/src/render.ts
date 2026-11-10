@@ -357,19 +357,26 @@ function mark(kind: Mark, T: Box, fs: number, seed: string) {
   }
   const cx = T.x + T.w / 2;
   const cy = T.y + T.h / 2;
-  const rx = T.w / 2 + p + T.w * 0.08;
-  const ry = T.h / 2 + p + T.h * 0.12;
+  // Loose around small targets, but never a ring far wider than a wide target.
+  const rx = T.w / 2 + p + Math.min(T.w * 0.08, fs * 0.6);
+  const ry = T.h / 2 + p + Math.min(T.h * 0.12, fs * 0.6);
   const a0 = -Math.PI * (0.55 + rand() * 0.2);
   const phase = rand() * Math.PI * 2;
   const pts: string[] = [];
   const n = 72;
+  // Wobble and the overshoot at the end scale with the short side, so long thin rings stay smooth.
+  const m = Math.min(rx, ry);
   for (let i = 0; i <= n; i++) {
     const t = i / n;
     const a = a0 + t * Math.PI * 2 * 1.07;
-    const k = 1 + 0.025 * Math.sin(2 * a + phase) + t * 0.05;
-    pts.push(`${i ? "L" : "M"}${r1(cx + Math.cos(a) * rx * k)},${r1(cy + Math.sin(a) * ry * k)}`);
+    const grow = m * (0.025 * Math.sin(2 * a + phase) + t * 0.06);
+    pts.push(`${i ? "L" : "M"}${r1(cx + Math.cos(a) * (rx + grow))},${r1(cy + Math.sin(a) * (ry + grow))}`);
   }
-  return { d: pts.join(" "), box: { x: cx - rx * 1.06, y: cy - ry * 1.06, w: rx * 2.12, h: ry * 2.12 } };
+  return {
+    d: pts.join(" "),
+    box: { x: cx - rx * 1.06, y: cy - ry * 1.06, w: rx * 2.12, h: ry * 2.12 },
+    ellipse: { cx, cy, rx: rx + m * 0.04, ry: ry + m * 0.04 },
+  };
 }
 
 export type Annotated = {
@@ -418,6 +425,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
   /** Per note, for the final check: its label box and the sampled points of its arrow. */
   const labels: (Box | null)[] = [];
   const paths: Pt[][] = [];
+  const tips: Pt[] = [];
   const resolved: Note[] = [];
 
   const image: Box = { x: 0, y: 0, w: W, h: H };
@@ -480,6 +488,10 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         s += Math.max(0, Math.hypot(a.e[0] - a.s[0], a.e[1] - a.s[1]) / fs - 5) * 1.5;
         for (const [p, q] of arrows) if (segmentsCross(a.s, a.e, p, q)) s += 15;
         for (const o of placed) if (curveHits(curve, o)) s += 60;
+        // An arrow crossing another note's target reads as pointing at it.
+        obstacles.forEach((o, k) => {
+          if (k !== i && curveHits(curve, o)) s += 40;
+        });
         if (arrowPts.some((p) => inBox(p, pad))) s += 80;
         return { ...c, s };
       });
@@ -530,6 +542,17 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
 
     if (T && n.arrow !== false) {
       const a = anchor(lb, L, T, !!t?.point && !n.mark, fs);
+      const el = mk && "ellipse" in mk ? mk.ellipse : undefined;
+      if (el) {
+        // Land on the ring itself; its bounding box corners are empty space.
+        const dx = a.s[0] - el.cx;
+        const dy = a.s[1] - el.cy;
+        const k = 1 / Math.max(1e-9, Math.hypot(dx / el.rx, dy / el.ry));
+        const gap = fs * 0.25;
+        const len = Math.hypot(dx, dy) || 1;
+        a.e = [el.cx + dx * k + (dx / len) * gap, el.cy + dy * k + (dy / len) * gap];
+      }
+      tips[i] = a.e;
       const ar = arrow(a.s, a.dir, a.e, n.bend, fs);
       els.push(
         `<path d="${ar.line}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round"/>`,
@@ -558,6 +581,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
       ...n,
       at: [Math.round(lb.x), Math.round(lb.y)],
       label: [lb.x, lb.y, lb.w, lb.h].map(Math.round),
+      ...(tips[i] ? { tip: tips[i].map(Math.round) } : {}),
     });
   });
 
@@ -586,7 +610,8 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
   const oy = Math.ceil(-minY);
   const width = Math.ceil(maxX) + ox;
   const height = Math.ceil(maxY) + oy;
-  if (width > 16384 || height > 16384 || width * height > 80e6)
+  // Only the growth is capped: a huge screenshot is fine, a canvas blown up by notes is not.
+  if (width * height > Math.max(80e6, W * H * 2.5))
     throw new Error(`the notes would need a ${width}x${height} canvas; shorten them or lower "size"`);
   const radius = card ? r1(fs * 0.35) : 0;
   const overlay = [

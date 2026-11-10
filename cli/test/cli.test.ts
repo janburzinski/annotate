@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { Resvg } from "@resvg/resvg-js";
@@ -105,6 +105,81 @@ describe("rejects bad input with a clear message", () => {
   });
 });
 
+describe("image files", () => {
+  const fx = (f: string) => join(import.meta.dir, "fixtures", f);
+  const canConvert = ["sips", "magick", "convert", "dwebp"].some((t) => Bun.which(t));
+
+  test.skipIf(!canConvert)("WebP is converted, not rendered blank", async () => {
+    const r = await run({ image: fx("ui.webp"), out: join(dir, "webp.png"), notes: [] });
+    expect(r.code).toBe(0);
+    const px = pixels(await loadImage(r.json.out));
+    expect(px[(10 * 300 + 10) * 4]).toBeGreaterThan(180);
+  });
+
+  test("EXIF rotation is applied", async () => {
+    const img = await loadImage(fx("rotated.jpg"));
+    expect([img.width, img.height]).toEqual([300, 200]);
+    const px = pixels(img);
+    expect(px[(10 * 300 + 10) * 4]).toBeGreaterThan(180);
+  });
+
+  test("truncated files fail loudly", async () => {
+    const r = await run({ image: fx("truncated.png"), notes: [] });
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("truncated");
+  });
+
+  test("huge screenshots are fine when notes do not grow them much", async () => {
+    await Bun.write(join(dir, "wide.png"), new Resvg(ui(20000, 300)).render().asPng());
+    const r = await run({ image: "wide.png", out: "wide-out.png", notes: [{ text: "x", to: [10000, 100, 200, 30] }] });
+    expect(r.code).toBe(0);
+  });
+});
+
+describe("paths", () => {
+  test("refuses to overwrite an input through a symlink", async () => {
+    symlinkSync(join(dir, "shot.png"), join(dir, "link.png"));
+    const r = await run({ image: "link.png", out: "shot.png", notes: [] });
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("overwrite");
+  });
+
+  test("--out is relative to the working directory", async () => {
+    mkdirSync(join(dir, "elsewhere"));
+    const file = join(dir, "where.json");
+    await Bun.write(file, JSON.stringify({ image: "shot.png", notes: [] }));
+    const p = Bun.spawn(["bun", CLI, file, "--out", "here.png"], { cwd: join(dir, "elsewhere"), stdout: "ignore", stderr: "ignore" });
+    expect(await p.exited).toBe(0);
+    expect(await Bun.file(join(dir, "elsewhere", "here.png")).exists()).toBe(true);
+  });
+
+  test("too many notes fails fast", async () => {
+    const notes = Array.from({ length: 5000 }, (_, i) => ({ text: `n${i}`, to: [i % 1400, i % 900] }));
+    const r = await run({ image: "shot.png", notes });
+    expect(r.code).toBe(1);
+    expect(r.err).toContain("too many");
+  });
+});
+
+describe("marks", () => {
+  test("arrows touch the ring around wide and tall targets", async () => {
+    const notes = [
+      { text: "wide", to: [280, 420, 840, 30], mark: "circle" },
+      { text: "tall", to: [1180, 100, 40, 600], mark: "circle" },
+    ];
+    const r = await run({ image: "shot.png", out: "rings.png", notes });
+    for (const n of r.json.resolved.notes) {
+      const [x, y, w, h] = n.to;
+      const [tx, ty] = n.tip;
+      const slack = r.json.fontSize * 1.6;
+      expect(tx).toBeGreaterThan(x - slack);
+      expect(tx).toBeLessThan(x + w + slack);
+      expect(ty).toBeGreaterThan(y - slack);
+      expect(ty).toBeLessThan(y + h + slack);
+    }
+  });
+});
+
 describe.skipIf(!findBrowser(true))("capture", () => {
   const page = (body: string) => `data:text/html,${encodeURIComponent(`<body style="margin:0;font:16px sans-serif">${body}</body>`)}`;
 
@@ -117,11 +192,36 @@ describe.skipIf(!findBrowser(true))("capture", () => {
     expect(x + h).toBeGreaterThan(0);
   }, 30000);
 
-  test("switches to a full-page shot for targets below the fold", async () => {
+  test("includes a target below the fold in the shot", async () => {
     const r = await run({ url: page(`<div style="height:3000px"></div><p id=a>far</p>`), out: "far.png", notes: [{ text: "x", target: "#a" }] });
     expect(r.code).toBe(0);
-    expect(r.json.height).toBeGreaterThan(3000);
+    const [, y, , h] = r.json.resolved.notes[0].to;
+    expect(y).toBeGreaterThan(0);
+    expect(y + h).toBeLessThan(r.json.height);
   }, 30000);
+
+  test("scrolls targets inside scroll containers into view", async () => {
+    const r = await run({
+      url: page(`<div style="height:200px;overflow:auto;margin:50px"><div style="height:1000px"></div><p id=a>inside</p></div>`),
+      out: "scroller.png",
+      notes: [{ text: "x", target: "#a" }],
+    });
+    expect(r.code).toBe(0);
+  }, 30000);
+
+  test("crops around a target on a very long page", async () => {
+    const r = await run({ url: page(`<div style="height:50000px"></div><p id=a>bottom</p>`), out: "long.png", notes: [{ text: "x", target: "#a" }] });
+    expect(r.code).toBe(0);
+    expect(r.json.height).toBeLessThan(4000);
+  }, 30000);
+
+  test("one-line errors for page scripts and clips", async () => {
+    for (const extra of [{ script: "throw new Error('mine')" }, { clip: [9000, 9000, 10, 10] }, { wait: 300, storageState: "missing.json" }]) {
+      const r = await run({ url: page("<p>x</p>"), out: "e.png", notes: [], ...extra });
+      expect(r.code).toBe(1);
+      expect(r.err.split("\n")).toHaveLength(1);
+    }
+  }, 60000);
 
   test("refuses hidden targets", async () => {
     const r = await run({ url: page(`<p id=a style="display:none">x</p>`), out: "h.png", notes: [{ text: "x", target: "#a" }] });

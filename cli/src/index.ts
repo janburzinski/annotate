@@ -1,4 +1,5 @@
 #!/usr/bin/env bun
+import { realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { capture } from "./capture";
@@ -6,6 +7,7 @@ import { compare, grid, resolvePath, sceneToPng, toPng } from "./compose";
 import { loadImage } from "./image";
 import { annotate, DEFAULT_COLOR } from "./render";
 import type { CaptureSpec, CompareSpec, RenderSpec } from "./types";
+import { writeAtomic } from "./png";
 import { checkSpec, parseRegion, parseStep } from "./validate";
 
 const USAGE = `annotate: handwritten (Poah) notes and arrows on screenshots
@@ -41,10 +43,17 @@ const args = () =>
     },
   });
 
-/** Never let an output path overwrite one of the inputs. */
+/** Never let an output path overwrite one of the inputs, also through symlinks. */
 function guardOut(out: string, inputs: string[]) {
-  const o = resolve(out);
-  if (inputs.some((i) => resolve(i) === o)) throw new Error(`output ${out} would overwrite an input image`);
+  const real = (p: string) => {
+    try {
+      return realpathSync(p);
+    } catch {
+      return resolve(p);
+    }
+  };
+  const o = real(out);
+  if (inputs.some((i) => real(i) === o)) throw new Error(`output ${out} would overwrite an input image`);
 }
 
 async function main() {
@@ -66,7 +75,7 @@ async function main() {
     const suffix = region ? `.grid-${region.join("-")}.png` : ".grid.png";
     const out = values.out ?? second.replace(/(\.\w+)?$/, suffix);
     guardOut(out, [second]);
-    await Bun.write(out, toPng(g.width, g.height, g.body, true));
+    await writeAtomic(out, toPng(g.width, g.height, g.body, true));
     return report({
       out: resolve(out),
       image: { width: img.width, height: img.height, dpr: img.dpr ?? null },
@@ -106,20 +115,20 @@ async function main() {
 
   if ("before" in spec || "after" in spec) {
     const cs = spec as CompareSpec;
-    const out = resolvePath(base, values.out ?? cs.out ?? "compare.png");
+    const out = values.out ? resolve(values.out) : resolvePath(base, cs.out ?? "compare.png");
     const sides = [
       await side(cs.before, out.replace(/(\.\w+)?$/, ".before.png")),
       await side(cs.after, out.replace(/(\.\w+)?$/, ".after.png")),
     ];
     guardOut(out, sides.map((x) => x.image));
     const c = await compare(cs, sides, sides[0].dpr);
-    await Bun.write(out, sceneToPng(c.scene));
+    await writeAtomic(out, sceneToPng(c.scene));
     return report({ out, width: c.scene.width, height: c.scene.height, warnings: c.warnings, resolved: c.resolved });
   }
 
   const isCapture = typeof spec.url === "string";
   const fallback = isCapture ? "capture.png" : String(spec.image).replace(/(\.\w+)?$/, ".annotated.png");
-  const out = resolvePath(base, values.out ?? spec.out ?? fallback);
+  const out = values.out ? resolve(values.out) : resolvePath(base, spec.out ?? fallback);
   if (!isCapture) guardOut(out, [resolvePath(base, spec.image as string)]);
   const r = await side(spec as RenderSpec | CaptureSpec, out);
   const img = await loadImage(r.image);
@@ -129,7 +138,7 @@ async function main() {
     { color: r.color, size: r.size, dpr: r.dpr },
     framed ? { card: true, pad: 1.2 } : {},
   );
-  await Bun.write(out, sceneToPng(a.scene));
+  await writeAtomic(out, sceneToPng(a.scene));
   report({
     out,
     width: a.scene.width,
@@ -151,6 +160,7 @@ function report(o: Record<string, unknown>) {
 }
 
 main().catch((e) => {
-  console.error(`annotate: ${e instanceof Error ? e.message : e}`);
+  // One line, always: library errors append call logs and stack details.
+  console.error(`annotate: ${(e instanceof Error ? e.message : String(e)).split("\n")[0]}`);
   process.exit(1);
 });

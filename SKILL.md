@@ -32,8 +32,9 @@ Arrows are only as good as their target boxes. Never guess pixel positions from 
 **Selectors.** Plain text blocks (a `<p>` or `<label>` spanning the row) snap to where their text
 actually is. Elements with their own visible box (buttons, inputs, cards, images) keep that box.
 Prefer the specific element (`#err`, `label[for=email]`, `text=Forgot password?`,
-`button >> nth=1`) over containers. A target below the fold switches the capture to a full-page
-screenshot automatically; a hidden target (no size on the page) is an error.
+`button >> nth=1`) over containers. A target below the fold is included automatically (the shot
+is cropped around the targets, so a very long page stays a normal image), a target inside a
+scroll container is scrolled into view, and a hidden target (no size on the page) is an error.
 
 **Own browser tool.** When you already drive a browser (Playwright, a browse tool), take the
 screenshot there and read boxes with `locator.boundingBox()`. Multiply every value by
@@ -47,7 +48,10 @@ shrink large images and the rulers get hard to read. Then read every target box 
 
 ## 2. Write the spec
 
-Coordinates are image pixels. Relative paths resolve against the spec file's folder.
+Coordinates are image pixels. Relative paths in a spec resolve against the spec file's folder;
+the `--out` flag resolves against the current directory. PNG and JPEG are read directly (EXIF
+rotation applied); WebP, HEIC, GIF, TIFF and CMYK JPEGs are converted with `sips`, ImageMagick or
+`dwebp` if one is installed. Truncated files are an error. Up to 150 notes per image.
 
 ```jsonc
 // Annotate an existing screenshot
@@ -75,6 +79,7 @@ Coordinates are image pixels. Relative paths resolve against the spec file's fol
   "wait": "text=Sign in",             // optional selector or milliseconds
   "script": "document.querySelector('#menu').click()",  // optional, runs before the shot
   "storageState": "auth.json",        // optional Playwright login state
+  "insecure": true,                   // accept a self-signed certificate (automatic for localhost, *.local, *.test)
   "notes": [{ "text": "full-width primary action", "target": "button[type=submit]" }]
 }
 ```
@@ -127,7 +132,7 @@ Spec-wide settings:
 ## 5. Verify (required)
 
 1. Read the CLI output. It prints `warnings` and a `resolved` spec. In `resolved`, each note gets
-   its final `at` and its `label` box `[x, y, w, h]`. These are original-image pixels, so a
+   its final `at`, its `label` box `[x, y, w, h]` and the arrow `tip` `[x, y]`. These are original-image pixels, so a
    negative value or one past the image size means the label sits in the margin the canvas grew.
    The warnings mean:
    - `covers or touches content` or `collides with another note or arrow`: move that label with `at`. The warning includes its box.
@@ -158,5 +163,7 @@ asked.
 - Errors name the note and the field (`note 2: "to" ... lies outside the 1400x900 image`). The CLI
   refuses targets outside the image, labels pinned far away, zero or negative `size` and `wrap`,
   unknown `mark` or `at` values, colours that are not hex, CSS names, `rgb()` or `hsl()`, and an
-  `out` path that would overwrite an input screenshot.
+  `out` path that would overwrite an input screenshot (symlinks included).
+- Capture gives a page 10 s to load and a `wait` selector 10 s to appear, then moves on or fails
+  with the reason. Pages that never finish loading (hung images, fonts, streams) still capture.
 - Automatic placement chose oddly: run with `ANNOTATE_DEBUG=1` to print the top candidate spots and their scores to stderr.

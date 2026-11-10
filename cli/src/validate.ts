@@ -1,6 +1,7 @@
 import type { CaptureNote } from "./types";
 
 const SIDES = ["left", "right", "above", "below"];
+export const MAX_NOTES = 150;
 const MARKS = ["circle", "underline", "box"];
 // Hex, CSS names, rgb()/hsl(). Anything else could break out of the SVG attribute it lands in.
 const COLOR = /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(rgb|hsl)a?\(\s*[\d.%\s,/-]+\))$/i;
@@ -25,6 +26,9 @@ export function checkStyle(where: string, s: Record<string, unknown>) {
 export function checkNotes(where: string, notes: unknown, capture = false): asserts notes is CaptureNote[] | undefined {
   if (notes === undefined) return;
   if (!Array.isArray(notes)) fail(where, `"notes" must be an array`);
+  // Placement compares every note with every other; past this it gets slow and unreadable anyway.
+  if ((notes as unknown[]).length > MAX_NOTES)
+    fail(where, `${(notes as unknown[]).length} notes is too many (max ${MAX_NOTES}); split them over several images`);
   (notes as unknown[]).forEach((n, i) => {
     const at = `${where} note ${i + 1}`;
     if (!n || typeof n !== "object" || Array.isArray(n)) return fail(at, "must be an object");

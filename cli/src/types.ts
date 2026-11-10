@@ -18,6 +18,8 @@ export type Note = {
   color?: string;
   /** Output only: the label's final [x, y, w, h]. Ignored on input. */
   label?: number[];
+  /** Output only: where the arrow tip landed. Ignored on input. */
+  tip?: number[];
 };
 
 export type Style = { color: string; size?: number; dpr?: number };
@@ -58,6 +60,8 @@ export type CaptureSpec = Partial<Style> & {
   /** Run in the page before capturing (e.g. to open a menu). */
   script?: string;
   colorScheme?: "light" | "dark";
+  /** Accept invalid TLS certificates (on by default for localhost, *.local and *.test). */
+  insecure?: boolean;
   frame?: boolean;
   notes?: CaptureNote[];
 };

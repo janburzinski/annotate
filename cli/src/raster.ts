@@ -1,6 +1,6 @@
-import { deflateSync } from "node:zlib";
 import { Resvg } from "@resvg/resvg-js";
 import { type Img, pixels } from "./image";
+import { encodePng } from "./png";
 
 /** A screenshot placed on the canvas at whole pixels, never resampled. */
 export type Layer = { img: Img; x: number; y: number; radius: number };
@@ -113,48 +113,6 @@ function composite(canvas: Uint8Array, top: Uint8Array) {
     for (let k = 0; k < 3; k++) canvas[i + k] = Math.round((top[i + k] * 255 + canvas[i + k] * da * ia) / oa);
     canvas[i + 3] = Math.round(oa);
   }
-}
-
-const crc = (b: Uint8Array) => Bun.hash.crc32(b) >>> 0;
-function chunk(type: string, data: Uint8Array) {
-  const out = new Uint8Array(12 + data.length);
-  const v = new DataView(out.buffer);
-  v.setUint32(0, data.length);
-  out.set(new TextEncoder().encode(type), 4);
-  out.set(data, 8);
-  v.setUint32(8 + data.length, crc(out.subarray(4, 8 + data.length)));
-  return out;
-}
-
-/** RGBA to PNG: "up" filter and zlib level 3 beat resvg's encoder on size at about the same speed. */
-export function encodePng(px: Uint8Array, w: number, h: number) {
-  const stride = w * 4;
-  const raw = new Uint8Array((stride + 1) * h);
-  for (let y = 0; y < h; y++) {
-    const o = y * (stride + 1);
-    const r = y * stride;
-    raw[o] = 2;
-    if (y === 0) raw.set(px.subarray(0, stride), 1);
-    else for (let x = 0; x < stride; x++) raw[o + 1 + x] = px[r + x] - px[r - stride + x];
-  }
-  const ihdr = new Uint8Array(13);
-  const v = new DataView(ihdr.buffer);
-  v.setUint32(0, w);
-  v.setUint32(4, h);
-  ihdr.set([8, 6, 0, 0, 0], 8);
-  const parts = [
-    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
-    chunk("IHDR", ihdr),
-    chunk("IDAT", deflateSync(raw, { level: 3 })),
-    chunk("IEND", new Uint8Array()),
-  ];
-  const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0));
-  let o = 0;
-  for (const p of parts) {
-    out.set(p, o);
-    o += p.length;
-  }
-  return out;
 }
 
 export function renderScene(scene: Scene, fontFiles: string[]) {

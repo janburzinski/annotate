@@ -4,3 +4,4 @@ node_modules/
 !docs/*.png
 docs/*.raw.png
 !docs/examples/*.png
+!cli/test/fixtures/*.png
