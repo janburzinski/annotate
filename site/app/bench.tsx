@@ -337,7 +337,7 @@ export function Bench() {
                   <g className="ghost" transform={`translate(${TRY.x + layer.x} ${TRY.y + layer.y})`} aria-hidden="true">
                     <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={result.fs / 4} strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} />
                     <g className="ghost-cursor">
-                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${result.fs / 26})`} />
+                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${result.fs / 42})`} />
                     </g>
                     <text className="ghost-label" x={TRY.w + result.fs * 0.8} y={TRY.h / 2 + result.fs * 0.35} fontSize={result.fs * 1.15}>
                       try it: drag over this
