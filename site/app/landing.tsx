@@ -1,10 +1,9 @@
 import { Bench } from "./bench";
-import { Command, CopyPrompt } from "./copy";
+import { CopyPrompt } from "./copy";
 import { type Example, Gallery } from "./gallery";
 import { Icon } from "./icons";
 
 const REPO = "https://github.com/janburzinski/annotate";
-const CLONE = `git clone ${REPO} ~/.agents/skills/annotate`;
 const PROMPT =
   "Install the annotate skill from github.com/janburzinski/annotate (clone it into ~/.agents/skills/annotate and run bun install in its cli folder). Use it whenever a marked-up screenshot or a before and after would explain a UI change better than text.";
 
@@ -17,21 +16,6 @@ const EXAMPLES: Example[] = [
 export function Landing() {
   return (
     <div className="page">
-      <header className="topbar">
-        <div className="wrap">
-          <a className="wordmark" href="/">
-            annotate
-          </a>
-          <nav>
-            <a href="#examples">Examples</a>
-            <a href={REPO} aria-label="GitHub" title="GitHub">
-              <Icon name="github" />
-            </a>
-            <CopyPrompt text={PROMPT} />
-          </nav>
-        </div>
-      </header>
-
       <main>
         <section className="wrap hero">
           <h1>
@@ -41,7 +25,11 @@ export function Landing() {
             annotate is a skill and CLI for coding agents. They point at an element, it places the note and the arrow. Try it on the screenshot below.
           </p>
           <div className="cta">
-            <Command text={CLONE} />
+            <CopyPrompt text={PROMPT} />
+            <a className="pill-link" href={REPO}>
+              <Icon name="github" />
+              GitHub
+            </a>
           </div>
           <div className="demo">
             <Bench />
