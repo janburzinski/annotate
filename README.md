@@ -55,6 +55,21 @@ Use `"image": "shot.png"` with `"to": [x, y, w, h]` boxes for existing screensho
 `after` keys for a comparison. Labels are placed in empty space automatically, and the CLI warns
 when a note covers content.
 
+## writing-pr
+
+A second skill, [`skills/writing-pr`](skills/writing-pr/SKILL.md), writes PR titles and bodies:
+Conventional Commit titles, short concrete bullets, mermaid diagrams and snippets instead of
+paragraphs, and annotated before/after tables for anything visual. It uses `annotate` for the
+screenshots.
+
+```bash
+ln -s ~/.agents/skills/annotate/skills/writing-pr ~/.agents/skills/writing-pr
+ln -s ~/.agents/skills/annotate/skills/writing-pr ~/.claude/skills/writing-pr   # Claude Code
+
+# or with the skills CLI
+npx skills add janburzinski/annotate --full-depth --skill writing-pr
+```
+
 ## Development
 
 `cd cli && bun test` runs the CLI against generated screenshots, including bad input and, when a
