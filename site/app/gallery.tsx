@@ -23,19 +23,38 @@ export function Gallery({ items }: { items: Example[] }) {
   const dialog = useRef<HTMLDialogElement>(null);
   const big = useRef<HTMLImageElement>(null);
   const thumbs = useRef<(HTMLImageElement | null)[]>([]);
+  // Opened with the keyboard: keep the focus ring on the thumbnail after closing, as keyboard users expect.
+  const keyboard = useRef(false);
 
+  // Open only once the large image is decoded, so it never pops in blank or mid-animation. The thumbnail
+  // hides in the same frame the dialog opens, and shows again in the same frame it closes.
   useLayoutEffect(() => {
     const thumb = open === undefined ? null : thumbs.current[open];
-    if (!thumb || !dialog.current || !big.current) return;
-    dialog.current.showModal();
-    if (!still()) big.current.animate([{ transform: fromThumb(thumb, big.current) }, { transform: "none" }], { duration: 320, easing: EASE });
+    const img = big.current;
+    if (!thumb || !img) return;
+    let live = true;
+    img
+      .decode()
+      .catch(() => {})
+      .then(() => {
+        if (!live || !dialog.current) return;
+        dialog.current.showModal();
+        thumb.style.visibility = "hidden";
+        if (!still()) img.animate([{ transform: fromThumb(thumb, img) }, { transform: "none" }], { duration: 320, easing: EASE });
+      });
+    return () => {
+      live = false;
+    };
   }, [open]);
 
   const close = () => {
     const thumb = open === undefined ? null : thumbs.current[open];
     if (closing || !thumb || !big.current) return;
     const done = () => {
+      thumb.style.visibility = "";
       dialog.current?.close();
+      // The dialog hands focus back to the thumbnail; after a click, without the ring.
+      if (!keyboard.current && document.activeElement instanceof HTMLElement) document.activeElement.blur();
       setOpen(undefined);
       setClosing(false);
     };
@@ -51,7 +70,16 @@ export function Gallery({ items }: { items: Example[] }) {
       <div className="gallery">
         {items.map((e, i) => (
           <figure key={e.src} className={e.wide ? "wide" : undefined} style={{ "--r": e.w / e.h } as CSSProperties}>
-            <button type="button" className="zoom" aria-label={`Enlarge: ${e.caption}`} onClick={() => setOpen(i)}>
+            <button
+              type="button"
+              className="zoom"
+              aria-label={`Enlarge: ${e.caption}`}
+              onClick={(ev) => {
+                if (open !== undefined) return;
+                keyboard.current = ev.detail === 0;
+                setOpen(i);
+              }}
+            >
               {/* biome-ignore lint/performance/noImgElement: static PNGs, shown at their own size */}
               <img
                 ref={(el) => {
@@ -62,7 +90,6 @@ export function Gallery({ items }: { items: Example[] }) {
                 width={e.w}
                 height={e.h}
                 loading="lazy"
-                style={open === i ? { visibility: "hidden" } : undefined}
               />
             </button>
             <figcaption>{e.caption}</figcaption>
