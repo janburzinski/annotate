@@ -13,8 +13,6 @@ type Shot = { src: string; name: string; pixels: Pixels };
 type Drag = { x0: number; y0: number; x1: number; y1: number };
 type Pending = { to: number[]; left: number; top: number };
 
-export type Chrome = "dock" | "window" | "keys";
-
 const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: "circle", label: "Circle", key: "1" },
   { id: "box", label: "Box", key: "2" },
@@ -26,8 +24,9 @@ const DEMO = { src: "/demo.png", name: "notra-home.png", dpr: 2 };
 const DEMO_NOTES: Note[] = [
   { text: "logos stand in for the brand names", to: [789, 320, 112, 112] },
   { text: "one loud action, the other stays quiet", to: [917, 923, 295, 44] },
-  { text: "the real product starts above the fold", to: [258, 1166, 2044, 554] },
 ];
+// The "See the Slack app" button: the spot the idle demo invites you to mark.
+const TRY = { x: 1316, y: 902, w: 376, h: 90 };
 // Big uploads are scaled down first: the engine reads every pixel.
 const MAX_SIDE = 3200;
 
@@ -118,7 +117,7 @@ function animateIn(els: Element[]) {
   }
 }
 
-export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
+export function Bench() {
   const [shot, setShot] = useState<Shot>();
   const [ready, setReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
@@ -127,6 +126,7 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
   const [pending, setPending] = useState<Pending>();
   const [text, setText] = useState("");
   const [touched, setTouched] = useState(false);
+  const [added, setAdded] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string>();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -214,6 +214,7 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
     setNotes((n) => [...n, note]);
     setPending(undefined);
     setTouched(true);
+    setAdded(true);
   };
 
   const openShot = async (file: File) => {
@@ -268,66 +269,34 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
     return () => window.removeEventListener("keydown", onKey);
   });
 
-  const tools = (variant: "icon" | "key") =>
-    TOOLS.map((t) =>
-      variant === "key" ? (
-        <button key={t.id} type="button" className="key-btn" aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>
-          <kbd>{t.key}</kbd>
-          {t.label}
-        </button>
-      ) : (
-        <button
-          key={t.id}
-          type="button"
-          className="icon-btn tool"
-          data-label={`${t.label}  ${t.key}`}
-          aria-label={t.label}
-          aria-pressed={tool === t.id}
-          onClick={() => setTool(t.id)}
-        >
-          <Icon name={t.id} />
-        </button>
-      ),
-    );
-  const actions = (variant: "icon" | "key") => {
-    const list = [
-      { id: "undo", label: "Undo", key: "Z", icon: "undo" as const, run: () => setNotes((n) => n.slice(0, -1)), off: !notes.length },
-      { id: "reset", label: "Reset", key: "R", icon: "reset" as const, run: reset, off: false },
-      { id: "open", label: "Your screenshot", key: "O", icon: "image" as const, run: () => fileRef.current?.click(), off: false },
-    ];
-    return list.map((a) =>
-      variant === "key" ? (
-        <button key={a.id} type="button" className="key-btn" disabled={a.off} onClick={a.run}>
-          <kbd>{a.key}</kbd>
-          {a.label}
-        </button>
-      ) : (
-        <button key={a.id} type="button" className="icon-btn tool" data-label={`${a.label}  ${a.key}`} aria-label={a.label} disabled={a.off} onClick={a.run}>
-          <Icon name={a.icon} />
-        </button>
-      ),
-    );
-  };
+  const tools = TOOLS.map((t) => (
+    <button
+      key={t.id}
+      type="button"
+      className="icon-btn tool"
+      data-label={`${t.label}  ${t.key}`}
+      aria-label={t.label}
+      aria-pressed={tool === t.id}
+      onClick={() => setTool(t.id)}
+    >
+      <Icon name={t.id} />
+    </button>
+  ));
+  const actions = [
+    { id: "undo", label: "Undo", key: "Z", icon: "undo" as const, run: () => setNotes((n) => n.slice(0, -1)), off: !notes.length },
+    { id: "reset", label: "Reset", key: "R", icon: "reset" as const, run: reset, off: false },
+    { id: "open", label: "Use your screenshot", key: "O", icon: "image" as const, run: () => fileRef.current?.click(), off: false },
+  ].map((a) => (
+    <button key={a.id} type="button" className="icon-btn tool" data-label={`${a.label}  ${a.key}`} aria-label={a.label} disabled={a.off} onClick={a.run}>
+      <Icon name={a.icon} />
+    </button>
+  ));
+  // The dock always says what to do next.
+  const next = pending ? "Type a note, press Enter" : drag ? "Let go to write a note" : added ? "Placed. Add another?" : "Drag over anything";
 
   return (
-    <div className="bench" data-chrome={chrome}>
+    <div className="bench">
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && openShot(e.target.files[0])} />
-      {chrome === "window" && (
-        <div className="window-bar">
-          <span className="lights" aria-hidden="true">
-            <i />
-            <i />
-            <i />
-          </span>
-          <span className="title">{shot?.name ?? "notra-home.png"}</span>
-          <div className="tools" role="toolbar" aria-label="Annotate">
-            {tools("icon")}
-            <span className="sep" />
-            {actions("icon")}
-          </div>
-        </div>
-      )}
-
       <div className="bench-body">
         <div className="stage-wrap">
           <div
@@ -364,17 +333,23 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
                 </defs>
                 <image href={shot.src} x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} clipPath={`url(#${clip})`} />
                 <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: result.scene.overlay }} />
+                {!touched && !drag && !pending && shot.name === DEMO.name && (
+                  <g className="ghost" transform={`translate(${TRY.x + layer.x} ${TRY.y + layer.y})`} aria-hidden="true">
+                    <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={result.fs / 4} strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} />
+                    <g className="ghost-cursor">
+                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${result.fs / 26})`} />
+                    </g>
+                    <text className="ghost-label" x={TRY.w + result.fs * 0.8} y={TRY.h / 2 + result.fs * 0.35} fontSize={result.fs * 1.15}>
+                      try it: drag over this
+                    </text>
+                  </g>
+                )}
                 {sel && (
                   <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} rx={result.fs / 5} />
                 )}
               </svg>
             ) : (
               <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "loading the engine…")}</div>
-            )}
-            {ok && (
-              <div className="stage-hint" style={{ opacity: touched || pending ? 0 : 1 }}>
-                Drag over anything to annotate it
-              </div>
             )}
             {pending && (
               <form
@@ -390,7 +365,7 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
                   autoFocus
                   value={text}
                   maxLength={80}
-                  placeholder="what's the point?"
+                  placeholder="your note"
                   aria-label="Note text"
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => e.key === "Escape" && setPending(undefined)}
@@ -399,25 +374,20 @@ export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
               </form>
             )}
           </div>
-          {chrome === "dock" && (
-            <div className="dock" role="toolbar" aria-label="Annotate">
-              {tools("icon")}
-              <span className="sep" />
-              {actions("icon")}
-            </div>
-          )}
-        </div>
-
-        {chrome === "keys" && (
-          <div className="keys-bar" role="toolbar" aria-label="Annotate">
-            <div className="group">{tools("key")}</div>
-            <div className="group">{actions("key")}</div>
+          <div className="dock" role="toolbar" aria-label="Annotate">
+            {tools}
+            <span className="sep" />
+            {actions}
+            <span className="sep" />
+            <span className="dock-next" aria-live="polite">
+              {next}
+            </span>
           </div>
-        )}
+        </div>
 
         <div className="spec">
           <div className="spec-head">
-            <span>spec.json · what your agent writes</span>
+            <span>spec.json</span>
             <CopyButton text={spec} label="Copy spec" />
           </div>
           <pre>{highlight(spec)}</pre>
