@@ -1,47 +1,39 @@
 "use client";
 
-import { type ReactNode, useLayoutEffect, useRef, useState } from "react";
+import { type CSSProperties, useLayoutEffect, useRef, useState } from "react";
 import { Icon } from "./icons";
 
-export type Example = { src: string; alt: string; title: string; body: string; w: number; h: number; area: string };
+export type Example = { src: string; alt: string; caption: string; w: number; h: number; wide?: boolean };
 
 const EASE = "cubic-bezier(0.23, 1, 0.32, 1)";
-const OPEN_CLIP = "inset(0px round 12px)";
-// The shadow is a drop-shadow on the frame around the image: it follows the clipped, moving image and
-// fades with it, instead of being cut off by the clip or left behind on the thumbnail.
+// The shadow is a drop-shadow on the frame around the image: it follows the moving image and fades with
+// it, instead of being left behind around the thumbnail.
 const SHADOW = ["drop-shadow(0 24px 32px rgb(0 0 0 / 0))", "drop-shadow(0 24px 32px rgb(0 0 0 / 0.45))"];
 
-/**
- * Where the large image must start (or end) to sit exactly on its thumbnail: the same box, cut to the
- * part the tile shows. Both images share one aspect ratio; the clip is in the large image's own pixels.
- */
+/** Where the large image must start (or end) to sit exactly on its thumbnail; both share one aspect ratio. */
 function onThumb(thumb: HTMLElement, big: HTMLElement) {
   const a = thumb.getBoundingClientRect();
   const b = big.getBoundingClientRect();
-  const t = thumb.closest(".tile")?.getBoundingClientRect() ?? a;
   const s = a.width / b.width;
-  const top = Math.max(0, t.top - a.top) / s;
-  const right = Math.max(0, a.right - t.right) / s;
-  const bottom = Math.max(0, a.bottom - t.bottom) / s;
-  const left = Math.max(0, t.left - a.left) / s;
   return {
     transform: `translate(${a.left - b.left}px, ${a.top - b.top}px) scale(${s})`,
-    clipPath: `inset(${top}px ${right}px ${bottom}px ${left}px round ${10 / s}px)`,
+    // The thumbnail's corner radius, in the large image's own pixels.
+    clipPath: `inset(0px round ${10 / s}px)`,
   };
 }
+const OPEN = { transform: "none", clipPath: "inset(0px round 12px)" };
 
 const still = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-/** The examples as a bento grid. A tile opens its full image in a lightbox that grows out of the tile. */
-export function Gallery({ items, children }: { items: Example[]; children?: ReactNode }) {
+/** The examples grid. Clicking one grows it from its place into a lightbox; closing shrinks it back. */
+export function Gallery({ items }: { items: Example[] }) {
   const [open, setOpen] = useState<number>();
   const [closing, setClosing] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const big = useRef<HTMLImageElement>(null);
   const frame = useRef<HTMLSpanElement>(null);
-  const grid = useRef<HTMLDivElement>(null);
   const thumbs = useRef<(HTMLImageElement | null)[]>([]);
-  // Opened with the keyboard: keep the focus ring on the tile after closing, as keyboard users expect.
+  // Opened with the keyboard: keep the focus ring on the thumbnail after closing, as keyboard users expect.
   const keyboard = useRef(false);
 
   // Open only once the large image is decoded, so it never pops in blank or mid-animation. The thumbnail
@@ -59,7 +51,7 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
         dialog.current.showModal();
         thumb.style.visibility = "hidden";
         if (still()) return;
-        img.animate([onThumb(thumb, img), { transform: "none", clipPath: OPEN_CLIP }], { duration: 340, easing: EASE });
+        img.animate([onThumb(thumb, img), OPEN], { duration: 340, easing: EASE });
         frame.current?.animate([{ filter: SHADOW[0] }, { filter: SHADOW[1] }], { duration: 340, easing: EASE });
       });
     return () => {
@@ -73,24 +65,14 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
     const done = () => {
       thumb.style.visibility = "";
       dialog.current?.close();
-      // The dialog hands focus back to the tile; after a click, without the ring.
+      // The dialog hands focus back to the thumbnail; after a click, without the ring.
       if (!keyboard.current && document.activeElement instanceof HTMLElement) document.activeElement.blur();
-      // The pointer may rest on the tile it came back to: no hover lift until it moves again.
-      const g = grid.current;
-      if (g) {
-        g.dataset.quiet = "";
-        document.addEventListener("pointermove", () => delete g.dataset.quiet, { once: true });
-      }
       setOpen(undefined);
       setClosing(false);
     };
     setClosing(true);
     if (still()) return done();
-    const anim = big.current.animate([{ transform: "none", clipPath: OPEN_CLIP }, onThumb(thumb, big.current)], {
-      duration: 240,
-      easing: EASE,
-      fill: "forwards",
-    });
+    const anim = big.current.animate([OPEN, onThumb(thumb, big.current)], { duration: 240, easing: EASE, fill: "forwards" });
     frame.current?.animate([{ filter: SHADOW[1] }, { filter: SHADOW[0] }], { duration: 240, easing: EASE, fill: "forwards" });
     anim.onfinish = done;
   };
@@ -98,47 +80,41 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
   const item = open === undefined ? undefined : items[open];
   return (
     <>
-      <div className="bento" ref={grid}>
+      <div className="gallery">
         {items.map((e, i) => (
-          <button
-            key={e.src}
-            type="button"
-            className="tile"
-            style={{ gridArea: e.area }}
-            data-area={e.area}
-            aria-label={`${e.title}: open the full image`}
-            onClick={(ev) => {
-              if (open !== undefined) return;
-              keyboard.current = ev.detail === 0;
-              setOpen(i);
-            }}
-          >
-            <span className="tile-text">
-              <span className="tile-title">{e.title}</span>
-              <span className="tile-body">{e.body}</span>
-            </span>
-            {/* biome-ignore lint/performance/noImgElement: static PNGs, shown at their own size */}
-            <img
-              ref={(el) => {
-                thumbs.current[i] = el;
+          <figure key={e.src} className={e.wide ? "wide" : undefined} style={{ "--r": e.w / e.h } as CSSProperties}>
+            <button
+              type="button"
+              className="zoom"
+              aria-label={`Enlarge: ${e.caption}`}
+              onClick={(ev) => {
+                if (open !== undefined) return;
+                keyboard.current = ev.detail === 0;
+                setOpen(i);
               }}
-              className="tile-img"
-              src={e.src}
-              alt={e.alt}
-              width={e.w}
-              height={e.h}
-              loading="lazy"
-            />
-          </button>
+            >
+              {/* biome-ignore lint/performance/noImgElement: static PNGs, shown at their own size */}
+              <img
+                ref={(el) => {
+                  thumbs.current[i] = el;
+                }}
+                src={e.src}
+                alt={e.alt}
+                width={e.w}
+                height={e.h}
+                loading="lazy"
+              />
+            </button>
+            <figcaption>{e.caption}</figcaption>
+          </figure>
         ))}
-        {children}
       </div>
       {/* biome-ignore lint/a11y/useKeyWithClickEvents: Escape closes it through onCancel, and the close button is focusable */}
       <dialog
         ref={dialog}
         className="lightbox"
         data-closing={closing || undefined}
-        aria-label={item?.title}
+        aria-label={item?.caption}
         onCancel={(e) => {
           e.preventDefault();
           close();
