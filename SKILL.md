@@ -132,8 +132,9 @@ Spec-wide settings:
 ## 5. Verify (required)
 
 1. Read the CLI output. It prints `warnings` and a `resolved` spec. In `resolved`, each note gets
-   its final `at`, its `label` box `[x, y, w, h]` and the arrow `tip` `[x, y]`. These are original-image pixels, so a
-   negative value or one past the image size means the label sits in the margin the canvas grew.
+   its final `at`, its `label` box `[x, y, w, h]` and the arrow `tip` `[x, y]`. These are
+   original-image pixels, so a negative value or one past the image size means the label sits in
+   the margin the canvas grew.
    The warnings mean:
    - `covers or touches content` or `collides with another note or arrow`: move that label with `at`. The warning includes its box.
    - `arrow … crosses content`: change `at`, or use a smaller `bend`.

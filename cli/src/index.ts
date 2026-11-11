@@ -12,22 +12,23 @@ import { checkSpec, parseRegion, parseStep } from "./validate";
 
 const USAGE = `annotate: handwritten (Poah) notes and arrows on screenshots
 
-  annotate <spec.json | ->        render a spec (stdin with -)
-  annotate grid <image>           overlay a pixel grid to read coordinates
-      --step <px>                 grid spacing (auto by default)
-      --region x,y,w,h            zoom into part of the image for precise boxes
+  annotate <spec.json | ->        render a spec (read it from stdin with -)
+  annotate grid <image>           pixel rulers, for reading coordinates off any image
+      --step <px>                 ruler spacing (automatic by default)
+      --region x,y,w,h            zoom into one area for precise boxes
 
-  --out <path>                    override the output path
-  --frame                         put the result on a rounded card
+  --out <path>                    output path, relative to the current directory
+  --frame                         always show the screenshot as a rounded card
 
 Spec kinds (picked by their keys):
-  { "image", "notes" }            annotate a screenshot
-  { "before", "after" }           side-by-side before/after
-  { "url", "notes": [{ "target": "<selector>" }] }   capture with Chrome, then annotate
+  { "image", "notes" }                              annotate an existing screenshot
+  { "url", "notes": [{ "target": "<selector>" }] }  capture with headless Chromium, then annotate
+  { "before", "after" }                             compare two images or captures
 
 Note: { "text", "to": [x,y] | [x,y,w,h], "at"?: [x,y] | "left|right|above|below",
-        "mark"?: "circle|underline|box", "bend"?: 0.12, "arrow"?: true, "wrap"?: 13, "color"? }
-Spec-wide: "color" (default ${DEFAULT_COLOR}), "size" (font px), "dpr", "frame".
+        "mark"?: "circle|underline|box", "bend"?: 0.12, "arrow"?: true, "wrap"?: 11, "color"? }
+Spec-wide: "color" (default ${DEFAULT_COLOR} on light, lighter on dark), "size", "dpr", "frame".
+Capture: "clip", "padding", "viewport", "dpr", "colorScheme", "wait", "script", "storageState", "insecure".
 See SKILL.md for the full guide.`;
 
 const args = () =>

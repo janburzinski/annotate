@@ -8,9 +8,9 @@ import type { Box, Mark, Note, Pt, Side, Style } from "./types";
 export const FONT_PATH = fileURLToPath(new URL("../fonts/Poah-Regular.ttf", import.meta.url));
 export const DEFAULT_COLOR = "#1d3fd6";
 /** Same ink, lifted so it stays readable on dark UI. */
-export const DARK_COLOR = "#7b9bff";
+const DARK_COLOR = "#7b9bff";
 /** For a note whose label and target sit on opposite (light vs dark) ground. */
-export const MID_COLOR = "#4d6df5";
+const MID_COLOR = "#4d6df5";
 /** The neutral surface a screenshot sits on once notes spill outside it. */
 export const SURFACE = "#f4f4f5";
 const SURFACE_LUM = 244;
@@ -51,7 +51,7 @@ function segmentsCross(a: Pt, b: Pt, c: Pt, d: Pt) {
 }
 
 /** How cluttered each region of the screenshot is, so labels land in empty space. */
-export function analyze(img: Img) {
+function analyze(img: Img) {
   const W = img.width;
   const H = img.height;
   const px = pixels(img);

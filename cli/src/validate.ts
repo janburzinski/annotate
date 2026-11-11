@@ -1,7 +1,7 @@
 import type { CaptureNote } from "./types";
 
 const SIDES = ["left", "right", "above", "below"];
-export const MAX_NOTES = 150;
+const MAX_NOTES = 150;
 const MARKS = ["circle", "underline", "box"];
 // Hex, CSS names, rgb()/hsl(). Anything else could break out of the SVG attribute it lands in.
 const COLOR = /^(#[0-9a-f]{3,8}|[a-z]{3,20}|(rgb|hsl)a?\(\s*[\d.%\s,/-]+\))$/i;
@@ -12,18 +12,18 @@ const fail = (where: string, msg: string): never => {
   throw new Error(`${where}: ${msg}`);
 };
 
-export function checkColor(where: string, v: unknown) {
+function checkColor(where: string, v: unknown) {
   if (v !== undefined && (typeof v !== "string" || !COLOR.test(v.trim())))
     fail(where, `"color" must be a hex, CSS name, rgb() or hsl() colour, got ${JSON.stringify(v)}`);
 }
 
-export function checkStyle(where: string, s: Record<string, unknown>) {
+function checkStyle(where: string, s: Record<string, unknown>) {
   checkColor(where, s.color);
   if (s.size !== undefined && !(isNum(s.size) && s.size > 0)) fail(where, `"size" must be a positive number`);
   if (s.dpr !== undefined && !(isNum(s.dpr) && s.dpr >= 0.5 && s.dpr <= 4)) fail(where, `"dpr" must be between 0.5 and 4`);
 }
 
-export function checkNotes(where: string, notes: unknown, capture = false): asserts notes is CaptureNote[] | undefined {
+function checkNotes(where: string, notes: unknown, capture = false): asserts notes is CaptureNote[] | undefined {
   if (notes === undefined) return;
   if (!Array.isArray(notes)) fail(where, `"notes" must be an array`);
   // Placement compares every note with every other; past this it gets slow and unreadable anyway.
@@ -50,7 +50,7 @@ export function checkNotes(where: string, notes: unknown, capture = false): asse
 }
 
 /** Validates one side of a spec: an image path, an image spec or a capture spec. */
-export function checkSide(where: string, s: unknown) {
+function checkSide(where: string, s: unknown) {
   if (typeof s === "string") return s.trim() || fail(where, "image path is empty");
   if (!s || typeof s !== "object" || Array.isArray(s)) return fail(where, "must be an image path or an object");
   const o = s as Record<string, unknown>;

@@ -22,12 +22,13 @@ The specs are in [`docs/examples`](docs/examples).
 
 ## Install
 
-Needs [Bun](https://bun.sh). Page capture uses any installed Chromium browser.
+Needs [Bun](https://bun.sh) 1.2 or newer. Page capture uses any installed Chromium browser
+(Chrome, Brave, Edge, Arc, Helium) or Playwright's own; set `ANNOTATE_BROWSER` to pick one.
 
 ```bash
 git clone https://github.com/janburzinski/annotate ~/.agents/skills/annotate
 cd ~/.agents/skills/annotate/cli && bun install
-ln -s ~/.agents/skills/annotate/cli/src/index.ts ~/.local/bin/annotate
+mkdir -p ~/.local/bin && ln -s ~/.agents/skills/annotate/cli/src/index.ts ~/.local/bin/annotate
 ln -s ~/.agents/skills/annotate ~/.claude/skills/annotate   # Claude Code
 ```
 
@@ -77,4 +78,5 @@ Chromium is installed, page capture. `bun run check` type-checks.
 
 ## License
 
-Poah is by Lakshay, under the [SIL Open Font License](cli/fonts/OFL.txt).
+The code is [MIT](LICENSE). The Poah font is by Lakshay, under the
+[SIL Open Font License](cli/fonts/OFL.txt).
