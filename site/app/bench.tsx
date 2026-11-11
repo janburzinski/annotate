@@ -31,9 +31,9 @@ const DEMO_NOTES: Note[] = [
 const TRY = { x: 1316, y: 902, w: 376, h: 90 };
 // Big uploads are scaled down first: the engine reads every pixel.
 const MAX_SIDE = 3200;
-// Widths of the note input and the note menu, to keep them inside the stage.
-const INPUT_W = 228;
-const MENU_W = 168;
+// Widths of the note input and the note menu (larger on touch screens), to keep them inside the stage.
+const INPUT_W = 244;
+const MENU_W = 216;
 
 let fontReady: Promise<void> | undefined;
 function loadFont() {

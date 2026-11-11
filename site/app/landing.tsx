@@ -26,9 +26,9 @@ export function Landing() {
           </p>
           <div className="cta">
             <CopyPrompt text={PROMPT} />
-            <a className="pill-link" href={REPO}>
+            <a className="pill-link" href={REPO} aria-label="GitHub">
               <Icon name="github" />
-              GitHub
+              <span className="pill-link-label">GitHub</span>
             </a>
           </div>
           <div className="demo">

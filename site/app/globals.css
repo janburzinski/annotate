@@ -699,6 +699,68 @@ html:has(.lightbox[open]) {
   margin: 0 0 var(--space-2);
 }
 
+/* Touch: bigger targets in the popovers on the screenshot. */
+@media (pointer: coarse) {
+  .note-menu .icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+  .note-menu {
+    border-radius: 11px;
+  }
+  .note-menu .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .note-input button {
+    width: 34px;
+    height: 30px;
+    border-radius: 7px;
+  }
+}
+
+/* Phones: the demo uses the full width, spec lines wrap, and GitHub becomes an icon beside the pill. */
+@media (max-width: 480px) {
+  .demo .bench {
+    margin-inline: -12px;
+    padding: 4px;
+    border-radius: 16px;
+  }
+  .stage {
+    border-radius: 12px;
+  }
+  .status {
+    border-radius: 12px;
+  }
+  .spec pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+  }
+  .pill-link {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .pill-link .icon {
+    width: 18px;
+    height: 18px;
+  }
+  .pill-link-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .cta {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+}
+
 @media (max-width: 900px) {
   .gallery figure {
     flex-basis: 100%;
