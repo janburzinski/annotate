@@ -1,22 +1,6 @@
 import { Resvg } from "@resvg/resvg-js";
-import { type Img, pixels } from "./image";
 import { encodePng } from "./png";
-
-/** A screenshot placed on the canvas at whole pixels, never resampled. */
-export type Layer = { img: Img; x: number; y: number; radius: number };
-
-/**
- * What a render is made of: an optional flat background, screenshots, and vector markup on top.
- * Screenshots are blitted from the pixels decoded for analysis, so each PNG is decoded once;
- * resvg only rasterises the notes and arrows.
- */
-export type Scene = {
-  width: number;
-  height: number;
-  background?: string;
-  images: Layer[];
-  overlay: string;
-};
+import type { Layer, Scene } from "./types";
 
 const hex = (c: string) => {
   const m = /^#([0-9a-f]{6})$/i.exec(c);
@@ -35,7 +19,8 @@ function corner(x: number, y: number, w: number, h: number, r: number) {
 }
 
 function blit(canvas: Uint8Array, W: number, H: number, l: Layer, bg: readonly number[] | undefined) {
-  const src = pixels(l.img);
+  const src = l.img.px;
+  if (!src) throw new Error("image is not decoded");
   const w = l.img.width;
   const h = l.img.height;
   const r = Math.max(0, Math.min(l.radius, w / 2, h / 2));

@@ -1,6 +1,30 @@
 export type Pt = [number, number];
 export type Box = { x: number; y: number; w: number; h: number };
 export type Side = "left" | "right" | "above" | "below";
+
+/** An image as the layout engine sees it: size plus decoded, premultiplied RGBA. */
+export type Pixels = { width: number; height: number; px?: Uint8Array; dpr?: number };
+
+/** The two font measurements the layout needs, satisfied by an opentype.js font. */
+export type FontMetrics = {
+  charToGlyphIndex(char: string): number;
+  getAdvanceWidth(text: string, fontSize: number): number;
+};
+
+/** A screenshot placed on the canvas at whole pixels, never resampled. */
+export type Layer = { img: Pixels; x: number; y: number; radius: number };
+
+/**
+ * What a render is made of: an optional flat background, screenshots, and vector markup on top.
+ * The CLI rasterises it to PNG; a browser can draw the same thing as SVG.
+ */
+export type Scene = {
+  width: number;
+  height: number;
+  background?: string;
+  images: Layer[];
+  overlay: string;
+};
 export type Mark = "circle" | "underline" | "box";
 
 export type Note = {

@@ -1,0 +1,557 @@
+/* Tokens, after Anomaly's rune system: one sans and one mono, a 4 px grid, hairlines instead of
+   boxes, one accent. The accent here is annotate's ink. Dark by default; [data-theme="paper"]
+   is the light variant. */
+@font-face {
+  font-family: "Poah";
+  src: url("/poah.ttf") format("truetype");
+  font-display: block;
+}
+
+:root {
+  --font-sans: var(--geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-hand: "Poah", var(--font-sans);
+
+  --text-11: 500 11px/16px var(--font-sans);
+  --text-13: 400 13px/20px var(--font-sans);
+  --text-14: 400 14px/22px var(--font-sans);
+  --text-16: 400 16px/26px var(--font-sans);
+  --text-20: 500 20px/28px var(--font-sans);
+  --text-40: 500 40px/44px var(--font-sans);
+  --mono-12: 400 12px/16px var(--font-mono);
+  --mono-13: 400 13px/20px var(--font-mono);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+
+  --bg: #000;
+  --fg: #ededed;
+  --fg-2: rgb(255 255 255 / 0.62);
+  --fg-3: rgb(255 255 255 / 0.4);
+  --surface-1: rgb(255 255 255 / 0.03);
+  --surface-2: rgb(255 255 255 / 0.06);
+  --surface-3: rgb(255 255 255 / 0.1);
+  --line: rgb(255 255 255 / 0.09);
+  --line-2: rgb(255 255 255 / 0.16);
+  /* annotate's ink, lifted for a dark page; the stage keeps the real #1d3fd6. */
+  --ink: #7b9bff;
+  --stage: #f4f4f5;
+
+  --radius-1: 4px;
+  --radius-2: 8px;
+  --content: 1120px;
+  --measure: 36rem;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+[data-theme="paper"] {
+  --bg: #fbfaf6;
+  --fg: #16161a;
+  --fg-2: rgb(0 0 0 / 0.62);
+  --fg-3: rgb(0 0 0 / 0.42);
+  --surface-1: rgb(0 0 0 / 0.02);
+  --surface-2: rgb(0 0 0 / 0.04);
+  --surface-3: rgb(0 0 0 / 0.07);
+  --line: rgb(0 0 0 / 0.08);
+  --line-2: rgb(0 0 0 / 0.14);
+  --ink: #1d3fd6;
+}
+
+* {
+  box-sizing: border-box;
+}
+html {
+  background: var(--bg);
+  color-scheme: dark;
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: var(--text-14);
+}
+.page[data-theme="paper"] {
+  color-scheme: light;
+  background:
+    linear-gradient(var(--line) 1px, transparent 1px) 0 0 / 32px 32px,
+    linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0 / 32px 32px,
+    var(--bg);
+}
+code,
+pre,
+kbd {
+  font-family: var(--font-mono);
+}
+::selection {
+  background: var(--fg);
+  color: var(--bg);
+}
+a {
+  color: inherit;
+  text-decoration: underline var(--line-2);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+@media (hover: hover) and (pointer: fine) {
+  a:hover {
+    text-decoration-color: var(--fg);
+  }
+}
+:focus-visible {
+  outline: 1px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* Frame */
+/* The theme is set on the page, so it has to restate the colours body would otherwise pass down. */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--fg);
+}
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px);
+  box-shadow: inset 0 -1px var(--line);
+}
+.topbar-inner,
+.content {
+  width: 100%;
+  max-width: calc(var(--content) + 2 * var(--space-6));
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+.topbar-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 52px;
+}
+.wordmark {
+  font-family: var(--font-hand);
+  font-size: 26px;
+  line-height: 1;
+  color: var(--ink);
+  text-decoration: none;
+}
+.topbar nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  font: var(--text-13);
+  color: var(--fg-2);
+}
+.topbar nav a {
+  text-decoration: none;
+}
+.topbar nav a:hover {
+  color: var(--fg);
+}
+
+/* Type */
+.eyebrow {
+  font: var(--mono-12);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--fg-3);
+}
+h1 {
+  margin: var(--space-3) 0 0;
+  font: var(--text-40);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+h2 {
+  margin: var(--space-2) 0 0;
+  font: var(--text-20);
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.lead {
+  max-width: var(--measure);
+  margin: var(--space-4) 0 0;
+  font: var(--text-16);
+  color: var(--fg-2);
+  text-wrap: pretty;
+}
+.hand {
+  font-family: var(--font-hand);
+  color: var(--ink);
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+/* Sections: a hairline rule, a head that states the point, then the content. */
+.hero {
+  padding-block: var(--space-8) var(--space-6);
+}
+.section {
+  padding-block: var(--space-8);
+  box-shadow: inset 0 1px var(--line);
+}
+.section-head {
+  margin-bottom: var(--space-6);
+}
+.section-head p {
+  max-width: var(--measure);
+  margin: var(--space-2) 0 0;
+  color: var(--fg-2);
+}
+
+/* Controls */
+.button,
+.segmented button {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-1);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--fg);
+  font: var(--text-13);
+  cursor: pointer;
+  transition: background 0.15s var(--ease-out);
+}
+.button:hover {
+  background: var(--surface-3);
+}
+.button[data-variant="ghost"] {
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-2);
+}
+.button[data-variant="ghost"]:hover {
+  color: var(--fg);
+  background: var(--surface-2);
+}
+.button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+.segmented {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: calc(var(--radius-1) + 2px);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+.segmented button {
+  height: 24px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--fg-2);
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--surface-3);
+  color: var(--fg);
+}
+.install {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: var(--mono-13);
+  color: var(--fg-2);
+  max-width: 100%;
+}
+.install code {
+  overflow: auto;
+  white-space: nowrap;
+}
+.install code::before {
+  content: "$ ";
+  color: var(--fg-3);
+}
+
+/* Bench: the live demo. A hairline frame around a light stage, where the handwriting lives. */
+.bench {
+  margin-top: var(--space-6);
+  border-radius: var(--radius-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  background: var(--surface-1);
+  overflow: hidden;
+}
+.bench-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2);
+  box-shadow: inset 0 -1px var(--line);
+}
+.bench-bar .group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.bench-body {
+  display: grid;
+}
+.bench[data-layout="split"] .bench-body {
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+.stage {
+  position: relative;
+  background: var(--stage);
+  touch-action: none;
+  user-select: none;
+}
+.stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+}
+.stage-hint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  translate: -50% 0;
+  padding: var(--space-1) var(--space-3);
+  border-radius: 999px;
+  background: rgb(22 22 26 / 0.86);
+  color: #fff;
+  font: var(--text-13);
+  pointer-events: none;
+  white-space: nowrap;
+  transition: opacity 0.3s var(--ease-out);
+}
+.stage-loading {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2614 / 1980;
+  color: #71717a;
+  font: var(--mono-13);
+}
+.drop-active::after {
+  content: "drop a screenshot";
+  position: absolute;
+  inset: var(--space-3);
+  display: grid;
+  place-items: center;
+  border: 2px dashed #1d3fd6;
+  border-radius: var(--radius-2);
+  background: rgb(29 63 214 / 0.06);
+  color: #1d3fd6;
+  font: 28px/1 var(--font-hand);
+}
+.note-input {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-2);
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.08),
+    0 8px 24px rgb(0 0 0 / 0.18);
+}
+.note-input input {
+  width: 240px;
+  height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d3fd6;
+  font: 22px/1 var(--font-hand);
+}
+.note-input input::placeholder {
+  color: #a1a1aa;
+}
+.note-input button {
+  height: 32px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: var(--radius-1);
+  background: #1d3fd6;
+  color: #fff;
+  font: var(--text-13);
+  cursor: pointer;
+}
+.spec {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  box-shadow: inset 1px 0 var(--line);
+}
+.bench[data-layout="stacked"] .spec {
+  box-shadow: inset 0 1px var(--line);
+}
+.spec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-3);
+  font: var(--mono-12);
+  color: var(--fg-3);
+  box-shadow: inset 0 -1px var(--line);
+}
+.spec pre {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-3);
+  overflow: auto;
+  font: var(--mono-12);
+  color: var(--fg-2);
+  max-height: 420px;
+}
+.bench[data-layout="split"] .spec pre {
+  max-height: none;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.spec .k {
+  color: var(--fg);
+}
+.spec .s {
+  color: oklch(0.84 0.06 80);
+}
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: var(--space-2) var(--space-3);
+  font: var(--mono-12);
+  color: var(--fg-3);
+  box-shadow: inset 0 1px var(--line);
+}
+.status .ok {
+  color: oklch(0.8 0.15 150);
+}
+.status .warn {
+  color: oklch(0.82 0.13 80);
+}
+
+/* Steps and examples */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+.step {
+  padding-top: var(--space-4);
+  box-shadow: inset 0 1px var(--line-2);
+}
+.step .n {
+  font: var(--mono-12);
+  color: var(--ink);
+}
+.step h3 {
+  margin: var(--space-2) 0 var(--space-2);
+  font: var(--text-14);
+  font-weight: 500;
+}
+.step p {
+  margin: 0;
+  color: var(--fg-2);
+}
+.step pre {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-2);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: var(--mono-12);
+  color: var(--fg-2);
+  overflow: auto;
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.gallery figure {
+  margin: 0;
+}
+.gallery figure.wide {
+  grid-column: 1 / -1;
+}
+.gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--radius-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  background: var(--stage);
+}
+.gallery figcaption {
+  margin-top: var(--space-2);
+  font: var(--text-13);
+  color: var(--fg-3);
+}
+.prompt {
+  margin: 0;
+  padding: var(--space-4);
+  border-radius: var(--radius-2);
+  background: var(--surface-1);
+  box-shadow: inset 0 0 0 1px var(--line);
+  font: var(--mono-13);
+  color: var(--fg);
+  white-space: pre-wrap;
+}
+.footer {
+  padding-block: var(--space-6) var(--space-8);
+  box-shadow: inset 0 1px var(--line);
+  font: var(--text-13);
+  color: var(--fg-3);
+}
+.footer p {
+  margin: 0 0 var(--space-2);
+}
+
+@media (max-width: 860px) {
+  .bench[data-layout="split"] .bench-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .bench[data-layout="split"] .spec {
+    box-shadow: inset 0 1px var(--line);
+  }
+  .steps {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .gallery {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  h1 {
+    font-size: 30px;
+    line-height: 36px;
+  }
+  .topbar nav a:not(:last-child) {
+    display: none;
+  }
+  .topbar-inner,
+  .content {
+    padding-inline: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

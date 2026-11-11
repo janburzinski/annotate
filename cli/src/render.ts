@@ -1,11 +1,7 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import opentype from "opentype.js";
-import { type Img, pixels } from "./image";
-import type { Scene } from "./raster";
-import type { Box, Mark, Note, Pt, Side, Style } from "./types";
+// The layout engine: pure maths over pixels and font metrics, so the CLI and the browser run the
+// same code. Node-only work (reading the font file, decoding images, writing PNGs) lives elsewhere.
+import type { Box, FontMetrics, Mark, Note, Pixels, Pt, Scene, Side, Style } from "./types";
 
-export const FONT_PATH = fileURLToPath(new URL("../fonts/Poah-Regular.ttf", import.meta.url));
 export const DEFAULT_COLOR = "#1d3fd6";
 /** Same ink, lifted so it stays readable on dark UI. */
 const DARK_COLOR = "#7b9bff";
@@ -14,8 +10,12 @@ const MID_COLOR = "#4d6df5";
 /** The neutral surface a screenshot sits on once notes spill outside it. */
 export const SURFACE = "#f4f4f5";
 const SURFACE_LUM = 244;
-const buf = readFileSync(FONT_PATH);
-const font = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+let font: FontMetrics | undefined;
+/** Set the Poah metrics once: the CLI loads them from disk, a browser from a fetched file. */
+export function setFont(f: FontMetrics) {
+  font = f;
+}
+const DEBUG = typeof process !== "undefined" && !!process.env?.ANNOTATE_DEBUG;
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 export const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
@@ -51,10 +51,19 @@ function segmentsCross(a: Pt, b: Pt, c: Pt, d: Pt) {
 }
 
 /** How cluttered each region of the screenshot is, so labels land in empty space. */
-function analyze(img: Img) {
+const analyses = new WeakMap<Pixels, ReturnType<typeof analyzeUncached>>();
+/** Analysis is the slow part and only depends on the image, so repeated layouts reuse it. */
+function analyze(img: Pixels) {
+  let a = analyses.get(img);
+  if (!a) analyses.set(img, (a = analyzeUncached(img)));
+  return a;
+}
+
+function analyzeUncached(img: Pixels) {
   const W = img.width;
   const H = img.height;
-  const px = pixels(img);
+  const px = img.px;
+  if (!px) throw new Error("image is not decoded");
   const counts = new Map<number, [number, number, number, number]>();
   const sample = (i: number) => {
     const key = ((px[i] >> 3) << 10) | ((px[i + 1] >> 3) << 5) | (px[i + 2] >> 3);
@@ -186,10 +195,12 @@ function crossings(A: ReturnType<typeof analyze>, p: Pt[], fs: number) {
 }
 
 function prepare(text: string, fs: number, wrap: number, warnings: string[]) {
+  if (!font) throw new Error("no font set; call setFont() first");
+  const f = font;
   const clean = text.replace(/ß/g, "ss").replace(/ẞ/g, "SS");
-  const missing = [...new Set([...clean].filter((c) => c.trim() && font.charToGlyphIndex(c) === 0))];
+  const missing = [...new Set([...clean].filter((c) => c.trim() && f.charToGlyphIndex(c) === 0))];
   if (missing.length) warnings.push(`Poah has no glyph for ${missing.join(" ")} in "${text}"`);
-  const width = (s: string) => font.getAdvanceWidth(s, fs);
+  const width = (s: string) => f.getAdvanceWidth(s, fs);
   const greedy = (para: string, max: number) => {
     const out: string[] = [];
     let line = "";
@@ -406,7 +417,7 @@ const cubicAt = (p: Pt[], t: number): Pt => {
 
 const inBox = ([x, y]: Pt, b: Box) => x > b.x && x < b.x + b.w && y > b.y && y < b.y + b.h;
 
-export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout: Layout = {}): Annotated {
+export function annotate(img: Pixels, notes: Note[], style: Partial<Style>, layout: Layout = {}): Annotated {
   const W = img.width;
   const H = img.height;
   const warnings: string[] = [];
@@ -496,7 +507,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
         return { ...c, s };
       });
       ranked.sort((a, b) => a.s - b.s);
-      if (process.env.ANNOTATE_DEBUG)
+      if (DEBUG)
         console.error(
           n.text,
           (["left", "right", "above", "below"] as Side[]).map((side) => {
@@ -564,7 +575,7 @@ export function annotate(img: Img, notes: Note[], style: Partial<Style>, layout:
       arrowPts.push(...samples);
       paths[i] = samples;
       // One or two hits is the arrow entering a card to reach its target; more is crossing text.
-      if (process.env.ANNOTATE_DEBUG)
+      if (DEBUG)
         console.error(`arrow "${L.lines[0]}" crossings=${crossings(A, ar.pts.slice(0, 4), fs)}`, ar.pts.slice(0, 4).map((p) => p.map(Math.round)));
       if (crossings(A, ar.pts.slice(0, 4), fs) >= 3)
         warnings.push(`the arrow from "${L.lines[0]}" crosses content; try another "at" or a different "bend"`);

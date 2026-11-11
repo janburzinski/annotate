@@ -76,6 +76,9 @@ npx skills add janburzinski/annotate --full-depth --skill writing-pr
 `cd cli && bun test` runs the CLI against generated screenshots, including bad input and, when a
 Chromium is installed, page capture. `bun run check` type-checks.
 
+`site/` is the landing page (Next.js). Its demo imports the CLI's layout engine from `cli/src`, so
+the notes you draw there are placed by the same code. `cd site && bun run dev` runs it.
+
 ## License
 
 The code is [MIT](LICENSE). The Poah font is by Lakshay, under the
