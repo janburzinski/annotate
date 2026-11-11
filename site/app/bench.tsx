@@ -10,8 +10,10 @@ import type { Mark, Note, Pixels } from "../../cli/src/types";
 
 type Tool = Mark | "arrow";
 type Shot = { src: string; name: string; pixels: Pixels };
-type Drag = { x0: number; y0: number; x1: number; y1: number };
-type Pending = { to: number[]; left: number; top: number };
+/** `hit` is the note whose label the drag started on: a click there opens that note's menu. */
+type Drag = { x0: number; y0: number; x1: number; y1: number; hit: number };
+/** `index` is set when editing an existing note's text. */
+type Pending = { to: number[]; left: number; top: number; index?: number };
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: "circle", label: "Circle", key: "1" },
@@ -29,6 +31,9 @@ const DEMO_NOTES: Note[] = [
 const TRY = { x: 1316, y: 902, w: 376, h: 90 };
 // Big uploads are scaled down first: the engine reads every pixel.
 const MAX_SIDE = 3200;
+// Widths of the note input and the note menu, to keep them inside the stage.
+const INPUT_W = 228;
+const MENU_W = 200;
 
 let fontReady: Promise<void> | undefined;
 function loadFont() {
@@ -129,6 +134,9 @@ export function Bench() {
   const [added, setAdded] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string>();
+  const [selected, setSelected] = useState<number>();
+  const [hover, setHover] = useState(-1);
+  const [menu, setMenu] = useState<{ left: number; top: number }>();
   const svgRef = useRef<SVGSVGElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGGElement>(null);
@@ -176,39 +184,122 @@ export function Bench() {
     [result],
   );
 
+  /** The topmost note whose label is under an image-pixel point, or -1. */
+  const hitNote = (p: { x: number; y: number }) => {
+    if (!result || "error" in result) return -1;
+    const pad = result.fs * 0.3;
+    for (let i = result.resolved.length - 1; i >= 0; i--) {
+      const [x, y, w, h] = result.resolved[i].label ?? [];
+      if (p.x > x - pad && p.x < x + w + pad && p.y > y - pad && p.y < y + h + pad) return i;
+    }
+    return -1;
+  };
+
+  /** Stage pixels just under a box given in image pixels, kept inside the stage. */
+  const under = (box: number[], width: number) => {
+    if (!result || "error" in result || !svgRef.current || !stageRef.current) return { left: 8, top: 8 };
+    const k = svgRef.current.getBoundingClientRect().width / result.scene.width;
+    const stage = stageRef.current.getBoundingClientRect();
+    const left = Math.min((box[0] + result.offset[0]) * k, stage.width - width - 8);
+    const top = Math.min((box[1] + (box[3] ?? 0) + result.offset[1]) * k + 10, stage.height - 44);
+    return { left: Math.max(8, left), top: Math.max(8, top) };
+  };
+
   const onDown = (e: PointerEvent<SVGSVGElement>) => {
     if (!shot || pending || e.button !== 0) return;
     const p = toImage(e);
-    if (!p || p.x < 0 || p.y < 0 || p.x > shot.pixels.width || p.y > shot.pixels.height) return;
+    if (!p) return;
+    const hit = hitNote(p);
+    const { width: W, height: H } = shot.pixels;
+    // Labels can sit in the margin; anywhere else, drawing starts on the screenshot.
+    if (hit < 0 && (p.x < 0 || p.y < 0 || p.x > W || p.y > H)) return;
+    // With a menu open, a click elsewhere only closes it; on another label it opens that note.
+    if (selected !== undefined && hit < 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    setDrag({ x0: p.x, y0: p.y, x1: p.x, y1: p.y });
+    const x = Math.min(W, Math.max(0, p.x));
+    const y = Math.min(H, Math.max(0, p.y));
+    setDrag({ x0: x, y0: y, x1: x, y1: y, hit });
   };
   const onMove = (e: PointerEvent<SVGSVGElement>) => {
-    if (!drag || !shot) return;
+    if (!shot) return;
     const p = toImage(e);
     if (!p) return;
+    if (!drag) {
+      const i = pending ? -1 : hitNote(p);
+      if (i !== hover) setHover(i);
+      return;
+    }
     const { width: W, height: H } = shot.pixels;
     setDrag({ ...drag, x1: Math.min(W, Math.max(0, p.x)), y1: Math.min(H, Math.max(0, p.y)) });
   };
   const onUp = () => {
-    if (!drag || !result || "error" in result || !svgRef.current || !stageRef.current) return;
+    if (!drag || !result || "error" in result) return;
     const x = Math.round(Math.min(drag.x0, drag.x1));
     const y = Math.round(Math.min(drag.y0, drag.y1));
     const w = Math.round(Math.abs(drag.x1 - drag.x0));
     const h = Math.round(Math.abs(drag.y1 - drag.y0));
     setDrag(undefined);
+    const click = w < 10 && h < 10;
+    if (click && drag.hit >= 0) {
+      setSelected(drag.hit);
+      return;
+    }
     // A click without a drag points at one spot.
-    const to = w < 10 && h < 10 ? [x, y] : [x, y, w, h];
-    const k = svgRef.current.getBoundingClientRect().width / result.scene.width;
-    const stage = stageRef.current.getBoundingClientRect();
-    const left = Math.min(Math.max(8, (x + result.offset[0]) * k), stage.width - 236);
-    const top = Math.min((y + h + result.offset[1]) * k + 10, stage.height - 44);
-    setPending({ to, left: Math.max(8, left), top: Math.max(8, top) });
+    const to = click ? [x, y] : [x, y, w, h];
+    setPending({ to, ...under([x, y, w, h], INPUT_W) });
     setText("");
   };
 
+  // The note menu sits under the selected label, and follows it when the layout changes.
+  useLayoutEffect(() => {
+    const label = selected === undefined || !result || "error" in result ? undefined : result.resolved[selected]?.label;
+    setMenu(label ? under(label, MENU_W) : undefined);
+  }, [selected, result]);
+
+  const close = () => {
+    setPending(undefined);
+    setSelected(undefined);
+  };
+  // Edits re-lay out every note; only brand-new notes draw themselves in.
+  const quietly = (f: (n: Note[]) => Note[]) => {
+    drawn.current = Number.POSITIVE_INFINITY;
+    setNotes(f);
+  };
+  const remove = (i: number) => {
+    quietly((n) => n.filter((_, k) => k !== i));
+    setSelected(undefined);
+    setHover(-1);
+  };
+  const setMark = (i: number, t: Tool) => quietly((n) => n.map((x, k) => (k === i ? { ...x, mark: t === "arrow" ? undefined : t } : x)));
+  const edit = (i: number) => {
+    const label = result && !("error" in result) ? result.resolved[i]?.label : undefined;
+    setSelected(undefined);
+    setPending({ to: notes[i].to ?? [], index: i, ...under(label ?? [8, 8, 0, 0], INPUT_W) });
+    setText(notes[i].text);
+  };
+
+  // Clicking anywhere outside the open note input or menu closes it.
+  useEffect(() => {
+    if (!pending && selected === undefined) return;
+    const onPointer = (e: globalThis.PointerEvent) => {
+      if (!(e.target as Element).closest(".note-input, .note-menu")) {
+        setPending(undefined);
+        setSelected(undefined);
+      }
+    };
+    document.addEventListener("pointerdown", onPointer);
+    return () => document.removeEventListener("pointerdown", onPointer);
+  }, [pending, selected]);
+
   const commit = () => {
     if (!pending) return;
+    const { index } = pending;
+    if (index !== undefined) {
+      const t = text.trim();
+      if (t) quietly((n) => n.map((x, k) => (k === index ? { ...x, text: t } : x)));
+      setPending(undefined);
+      return;
+    }
     const note: Note = { text: text.trim() || "this one", to: pending.to };
     if (tool !== "arrow" && pending.to.length === 4) note.mark = tool;
     setNotes((n) => [...n, note]);
@@ -222,6 +313,7 @@ export function Bench() {
     try {
       const s = await loadShot(URL.createObjectURL(file), file.name || "screenshot.png");
       drawn.current = 0;
+      close();
       setShot(s);
       setNotes([]);
       setTouched(true);
@@ -242,7 +334,7 @@ export function Bench() {
 
   const reset = async () => {
     drawn.current = 0;
-    setPending(undefined);
+    close();
     setShot(await loadShot(DEMO.src, DEMO.name, DEMO.dpr));
     setNotes(DEMO_NOTES);
   };
@@ -252,15 +344,26 @@ export function Bench() {
   const layer = ok ? result.scene.images[0] : undefined;
   const sel = drag && ok ? { x: Math.min(drag.x0, drag.x1) + result.offset[0], y: Math.min(drag.y0, drag.y1) + result.offset[1], w: Math.abs(drag.x1 - drag.x0), h: Math.abs(drag.y1 - drag.y0) } : undefined;
 
-  // 1-4 pick a tool, Z undoes, R resets, O opens a screenshot; never while typing a note.
+  // Escape closes the note input or menu from anywhere. Otherwise, never while typing: 1-4 pick a
+  // tool, Z undoes, R resets, O opens a screenshot, Delete removes the selected note.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && (pending || selected !== undefined)) {
+        close();
+        return;
+      }
       const t = e.target as HTMLElement;
       if (t.closest("input, textarea, [contenteditable]") || e.altKey || pending) return;
+      if (selected !== undefined && (e.key === "Delete" || e.key === "Backspace")) {
+        e.preventDefault();
+        remove(selected);
+        return;
+      }
       const tool = TOOLS.find((x) => x.key === e.key);
       if (tool && !e.metaKey && !e.ctrlKey) setTool(tool.id);
       else if (e.key.toLowerCase() === "z" && !e.shiftKey) {
         e.preventDefault();
+        setSelected(undefined);
         setNotes((n) => n.slice(0, -1));
       } else if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey) reset();
       else if (e.key.toLowerCase() === "o" && !e.metaKey && !e.ctrlKey) fileRef.current?.click();
@@ -283,7 +386,12 @@ export function Bench() {
     </button>
   ));
   const actions = [
-    { id: "undo", label: "Undo", key: "Z", icon: "undo" as const, run: () => setNotes((n) => n.slice(0, -1)), off: !notes.length },
+    { id: "undo", label: "Undo", key: "Z", icon: "undo" as const, run: () => {
+        setSelected(undefined);
+        setNotes((n) => n.slice(0, -1));
+      },
+      off: !notes.length,
+    },
     { id: "reset", label: "Reset", key: "R", icon: "reset" as const, run: reset, off: false },
     { id: "open", label: "Use your screenshot", key: "O", icon: "image" as const, run: () => fileRef.current?.click(), off: false },
   ].map((a) => (
@@ -292,7 +400,17 @@ export function Bench() {
     </button>
   ));
   // The dock always says what to do next.
-  const next = pending ? "Type a note, press Enter" : drag ? "Let go to write a note" : added ? "Placed. Add another?" : "Drag over anything";
+  const next =
+    selected !== undefined
+      ? "Change the mark, edit or delete"
+      : pending
+        ? "Type a note, press Enter"
+        : drag
+          ? "Let go to write a note"
+          : added
+            ? "Placed. Click a note to change it"
+            : "Drag over anything";
+  const picked = selected === undefined ? undefined : notes[selected];
 
   return (
     <div className="bench">
@@ -320,6 +438,7 @@ export function Bench() {
                 viewBox={`0 0 ${result.scene.width} ${result.scene.height}`}
                 role="img"
                 aria-label={`Screenshot with ${notes.length} handwritten notes`}
+                style={hover >= 0 && !drag ? { cursor: "pointer" } : undefined}
                 onPointerDown={onDown}
                 onPointerMove={onMove}
                 onPointerUp={onUp}
@@ -332,6 +451,24 @@ export function Bench() {
                   </clipPath>
                 </defs>
                 <image href={shot.src} x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} clipPath={`url(#${clip})`} />
+                {[...new Set([hover, selected ?? -1])].map((i) => {
+                  const label = result.resolved[i]?.label;
+                  if (!label) return null;
+                  const p = result.fs * 0.25;
+                  return (
+                    <rect
+                      key={i}
+                      className={i === selected ? "note-sel" : "note-hover"}
+                      x={label[0] + result.offset[0] - p}
+                      y={label[1] + result.offset[1] - p}
+                      width={label[2] + p * 2}
+                      height={label[3] + p * 2}
+                      rx={result.fs / 4}
+                      strokeWidth={result.fs / 14}
+                      strokeDasharray={`${result.fs / 3} ${result.fs / 4}`}
+                    />
+                  );
+                })}
                 <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: result.scene.overlay }} />
                 {!touched && !drag && !pending && shot.name === DEMO.name && (
                   <g className="ghost" transform={`translate(${TRY.x + layer.x} ${TRY.y + layer.y})`} aria-hidden="true">
@@ -368,12 +505,46 @@ export function Bench() {
                   placeholder="your note"
                   aria-label="Note text"
                   onChange={(e) => setText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Escape" && setPending(undefined)}
                 />
                 <button type="submit" aria-label="Place note" title="Place note">
                   <Icon name="enter" />
                 </button>
               </form>
+            )}
+            {picked && menu && selected !== undefined && (
+              <div className="note-menu" role="toolbar" aria-label="Note" style={menu}>
+                {picked.to?.length === 4 && (
+                  <>
+                    {TOOLS.map((t) => (
+                      <button
+                        key={t.id}
+                        type="button"
+                        className="icon-btn tool"
+                        data-label={t.id === "arrow" ? "Arrow only" : t.label}
+                        aria-label={t.id === "arrow" ? "Arrow only" : t.label}
+                        aria-pressed={(picked.mark ?? "arrow") === t.id}
+                        onClick={() => setMark(selected, t.id)}
+                      >
+                        <Icon name={t.id} />
+                      </button>
+                    ))}
+                    <span className="sep" />
+                  </>
+                )}
+                <button type="button" className="icon-btn tool" data-label="Edit text" aria-label="Edit text" onClick={() => edit(selected)}>
+                  <Icon name="pencil" />
+                </button>
+                <button
+                  type="button"
+                  className="icon-btn tool"
+                  data-danger
+                  data-label="Delete  ⌫"
+                  aria-label="Delete note"
+                  onClick={() => remove(selected)}
+                >
+                  <Icon name="trash" />
+                </button>
+              </div>
             )}
           </div>
           <div className="dock" role="toolbar" aria-label="Annotate">
