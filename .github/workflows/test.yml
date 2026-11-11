@@ -12,8 +12,10 @@ jobs:
       run:
         working-directory: cli
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
+      # dwebp, so the WebP conversion path is tested as well.
+      - run: sudo apt-get update -q && sudo apt-get install -y -q webp
       - run: bun install --frozen-lockfile
       - run: bun run check
       # The runner ships Google Chrome, so the page-capture tests run too.
