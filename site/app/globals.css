@@ -151,7 +151,7 @@ h2 {
   background: transparent;
   color: var(--fg-2);
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.16s var(--ease);
+  transition: background 0.15s ease, color 0.15s ease;
 }
 .icon-btn:hover {
   background: var(--hover);
@@ -734,13 +734,10 @@ html:has(.lightbox[open]) {
   background: oklch(1 0 0 / 0.12);
   color: #fff;
   cursor: pointer;
-  transition: background 0.15s ease, opacity 0.2s ease-out, transform 0.16s var(--ease);
+  transition: background 0.15s ease, opacity 0.2s ease-out;
 }
 .lightbox-close:hover {
   background: oklch(1 0 0 / 0.2);
-}
-.lightbox-close:active {
-  transform: scale(0.96);
 }
 .lightbox[data-closing] .lightbox-close {
   opacity: 0;
@@ -885,13 +882,10 @@ html:has(.lightbox[open]) {
   white-space: nowrap;
   cursor: pointer;
   --ring: var(--raised);
-  transition: box-shadow 0.15s ease, background 0.15s ease, transform 0.16s var(--ease);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 .pill:hover {
   box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 2px 6px var(--drop);
-}
-.pill:active {
-  transform: scale(0.96);
 }
 .pill .icon {
   width: 15px;
