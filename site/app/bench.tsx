@@ -397,7 +397,7 @@ export function Bench() {
       <Icon name={a.icon} />
     </button>
   ));
-  // The dock always says what to do next.
+  // While something is in progress, the dock says what to do next.
   const next =
     selected !== undefined
       ? "Change the mark, edit or delete"
@@ -405,7 +405,7 @@ export function Bench() {
         ? "Type a note, press Enter"
         : drag
           ? "Let go to write a note"
-          : "Drag over anything";
+          : "";
   const picked = selected === undefined ? undefined : notes[selected];
 
   return (
@@ -547,7 +547,7 @@ export function Bench() {
             {tools}
             <span className="sep" />
             {actions}
-            <span className="sep" />
+            {next && <span className="sep" />}
             <span className="dock-next" aria-live="polite">
               {next}
             </span>

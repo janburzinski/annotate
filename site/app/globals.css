@@ -538,6 +538,9 @@ h2 {
   height: 34px;
   border-radius: 7px;
 }
+.dock-next:empty {
+  display: none;
+}
 .dock-next {
   min-width: 170px;
   padding: 0 10px 0 6px;
