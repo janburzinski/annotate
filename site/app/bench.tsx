@@ -2,16 +2,17 @@
 
 import { parse } from "opentype.js";
 import { CopyButton } from "./copy";
-import { DEMO, DEMO_NOTES, TRY, type View } from "./demo";
+import { DEMO_DPR, DEMO_NOTES, DEMOS, type Scheme, TRY, type View } from "./demo";
 import { highlight } from "./highlight";
 import { Icon } from "./icons";
-import { type PointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 // The CLI's own layout engine: the same code places these labels when an agent runs `annotate`.
 import { annotate, setFont } from "../../cli/src/render";
 import type { Mark, Note, Pixels } from "../../cli/src/types";
 
 type Tool = Mark | "arrow";
-type Shot = { src: string; name: string; pixels: Pixels };
+/** `scheme` marks the demo screenshots, which follow the system theme; uploads have none. */
+type Shot = { src: string; name: string; pixels: Pixels; scheme?: Scheme };
 /** `hit` is the note whose label the drag started on: a click there opens that note's menu. */
 type Drag = { x0: number; y0: number; x1: number; y1: number; hit: number };
 /** `index` is set when editing an existing note's text. */
@@ -37,6 +38,22 @@ function loadFont() {
     .then((b) => setFont(parse(b)));
   return fontReady;
 }
+
+const DARK = "(prefers-color-scheme: dark)";
+/** The system theme; undefined on the server and while hydrating, when the page shows both scenes. */
+function useScheme(): Scheme | undefined {
+  return useSyncExternalStore(
+    (onChange) => {
+      const m = window.matchMedia(DARK);
+      m.addEventListener("change", onChange);
+      return () => m.removeEventListener("change", onChange);
+    },
+    () => (window.matchMedia(DARK).matches ? "dark" : "light"),
+    () => undefined,
+  );
+}
+
+const loadDemo = (scheme: Scheme) => loadShot(DEMOS[scheme].src, DEMOS[scheme].name, DEMO_DPR).then((s): Shot => ({ ...s, scheme }));
 
 async function loadShot(src: string, name: string, dpr?: number): Promise<Shot> {
   const img = new Image();
@@ -101,7 +118,8 @@ function animateIn(els: Element[]) {
   }
 }
 
-export function Bench({ initial }: { initial: View }) {
+export function Bench({ initial }: { initial: Record<Scheme, View> }) {
+  const scheme = useScheme();
   const [shot, setShot] = useState<Shot>();
   const [ready, setReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
@@ -125,13 +143,22 @@ export function Bench({ initial }: { initial: View }) {
   const clip = useId();
 
   useEffect(() => {
-    Promise.all([loadFont(), loadShot(DEMO.src, DEMO.name, DEMO.dpr)])
-      .then(([, s]) => {
-        setShot(s);
-        setReady(true);
-      })
+    loadFont()
+      .then(() => setReady(true))
       .catch((e) => setError(String(e)));
   }, []);
+  // The demo screenshot follows the system theme, also when it changes while the page is open; the notes
+  // stay, since both captures share one layout. An uploaded screenshot stays put.
+  useEffect(() => {
+    if (!scheme || (shot && !shot.scheme) || shot?.scheme === scheme) return;
+    let live = true;
+    loadDemo(scheme)
+      .then((s) => live && setShot(s))
+      .catch((e) => setError(String(e)));
+    return () => {
+      live = false;
+    };
+  }, [scheme, shot]);
 
   const result = useMemo((): View | { error: string } | undefined => {
     if (!shot || !ready) return undefined;
@@ -147,7 +174,7 @@ export function Bench({ initial }: { initial: View }) {
         offset: [a.offset[0], a.offset[1]],
         radius: a.scene.images[0].radius ?? 0,
         // The demo keeps the server's placeholder underneath, so taking over changes nothing on screen.
-        image: { src: shot.src, width: shot.pixels.width, height: shot.pixels.height, placeholder: shot.name === DEMO.name ? initial.image.placeholder : undefined },
+        image: { src: shot.src, width: shot.pixels.width, height: shot.pixels.height, placeholder: shot.scheme && initial[shot.scheme].image.placeholder },
         resolved: a.resolved,
         warnings: a.warnings,
         ms: performance.now() - t0,
@@ -156,7 +183,8 @@ export function Bench({ initial }: { initial: View }) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
   }, [shot, ready, notes, initial]);
-  const src = result && !("error" in result) ? result.image.src : initial.image.src;
+  const fallback = initial[scheme ?? "light"];
+  const src = result && !("error" in result) ? result.image.src : fallback.image.src;
   useEffect(() => {
     const img = new Image();
     img.src = src;
@@ -166,7 +194,7 @@ export function Bench({ initial }: { initial: View }) {
       .then(() => setSharp(src));
   }, [src]);
   // Until the engine runs here, show the scene laid out on the server.
-  const view: View | undefined = result ? ("error" in result ? undefined : result) : notes === DEMO_NOTES ? initial : undefined;
+  const view: View | undefined = result ? ("error" in result ? undefined : result) : notes === DEMO_NOTES ? fallback : undefined;
 
   // Earlier notes keep their element count when one is added, so the new elements are the tail.
   useLayoutEffect(() => {
@@ -338,11 +366,11 @@ export function Bench({ initial }: { initial: View }) {
   const reset = async () => {
     drawn.current = 0;
     close();
-    setShot(await loadShot(DEMO.src, DEMO.name, DEMO.dpr));
+    setShot(await loadDemo(scheme ?? "light"));
     setNotes(DEMO_NOTES);
   };
 
-  const spec = specJson(shot?.name ?? DEMO.name, notes);
+  const spec = specJson(shot?.name ?? DEMOS[scheme ?? "light"].name, notes);
   const sel = drag && view ? { x: Math.min(drag.x0, drag.x1) + view.offset[0], y: Math.min(drag.y0, drag.y1) + view.offset[1], w: Math.abs(drag.x1 - drag.x0), h: Math.abs(drag.y1 - drag.y0) } : undefined;
 
   // Escape closes the note input or menu from anywhere. Otherwise, never while typing: 1-4 pick a
@@ -411,6 +439,80 @@ export function Bench({ initial }: { initial: View }) {
           : "";
   const picked = selected === undefined ? undefined : notes[selected];
 
+  /** One screenshot with its notes. `live` is the interactive one; before the theme is known, the page
+   * renders a scene per theme and CSS shows the right one, so dark-mode visitors never see the light demo. */
+  const scene = (v: View, key: string, live: boolean) => (
+    <svg
+      key={key}
+      ref={live ? svgRef : undefined}
+      className="scene"
+      data-scheme={key === "upload" ? undefined : key}
+      viewBox={`0 0 ${v.width} ${v.height}`}
+      role="img"
+      aria-label={`Screenshot with ${notes.length} handwritten notes`}
+      style={live && hover >= 0 && !drag ? { cursor: "pointer" } : undefined}
+      onPointerDown={live ? onDown : undefined}
+      onPointerMove={live ? onMove : undefined}
+      onPointerUp={live ? onUp : undefined}
+      onPointerCancel={live ? () => setDrag(undefined) : undefined}
+    >
+      {v.background && <rect width={v.width} height={v.height} fill={v.background} />}
+      <defs>
+        <clipPath id={`${clip}${key}`}>
+          <rect x={v.offset[0]} y={v.offset[1]} width={v.image.width} height={v.image.height} rx={v.radius} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clip}${key})`}>
+        {v.image.placeholder && (
+          <image href={v.image.placeholder} x={v.offset[0]} y={v.offset[1]} width={v.image.width} height={v.image.height} preserveAspectRatio="none" />
+        )}
+        <image
+          className="shot"
+          data-ready={!v.image.placeholder || sharp === v.image.src || undefined}
+          href={v.image.src}
+          x={v.offset[0]}
+          y={v.offset[1]}
+          width={v.image.width}
+          height={v.image.height}
+        />
+      </g>
+      {live &&
+        [...new Set([hover, selected ?? -1])].map((i) => {
+          const label = v.resolved[i]?.label;
+          if (!label) return null;
+          const p = v.fs * 0.25;
+          return (
+            <rect
+              key={i}
+              className={i === selected ? "note-sel" : "note-hover"}
+              x={label[0] + v.offset[0] - p}
+              y={label[1] + v.offset[1] - p}
+              width={label[2] + p * 2}
+              height={label[3] + p * 2}
+              rx={v.fs / 4}
+              strokeWidth={v.fs / 14}
+              strokeDasharray={`${v.fs / 3} ${v.fs / 4}`}
+            />
+          );
+        })}
+      <g ref={live ? overlayRef : undefined} dangerouslySetInnerHTML={{ __html: v.overlay }} />
+      {!touched && !drag && !pending && (!shot || shot.scheme) && (
+        <g className="ghost" transform={`translate(${TRY.x + v.offset[0]} ${TRY.y + v.offset[1]})`} aria-hidden="true">
+          <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={v.fs / 4} strokeWidth={v.fs / 11} strokeDasharray={`${v.fs / 3} ${v.fs / 4}`} />
+          <g className="ghost-cursor">
+            <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${v.fs / 42})`} />
+          </g>
+          <text className="ghost-label" x={TRY.w + v.fs * 0.8} y={TRY.h / 2 + v.fs * 0.35} fontSize={v.fs * 1.15}>
+            try it: drag over this
+          </text>
+        </g>
+      )}
+      {live && sel && (
+        <rect className="sel" x={sel.x} y={sel.y} width={sel.w} height={sel.h} strokeWidth={v.fs / 11} strokeDasharray={`${v.fs / 3} ${v.fs / 4}`} rx={v.fs / 5} />
+      )}
+    </svg>
+  );
+
   return (
     <div className="bench">
       <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && openShot(e.target.files[0])} />
@@ -431,75 +533,11 @@ export function Bench({ initial }: { initial: View }) {
               if (f) openShot(f);
             }}
           >
-            {view ? (
-              <svg
-                ref={svgRef}
-                viewBox={`0 0 ${view.width} ${view.height}`}
-                role="img"
-                aria-label={`Screenshot with ${notes.length} handwritten notes`}
-                style={hover >= 0 && !drag ? { cursor: "pointer" } : undefined}
-                onPointerDown={onDown}
-                onPointerMove={onMove}
-                onPointerUp={onUp}
-                onPointerCancel={() => setDrag(undefined)}
-              >
-                {view.background && <rect width={view.width} height={view.height} fill={view.background} />}
-                <defs>
-                  <clipPath id={clip}>
-                    <rect x={view.offset[0]} y={view.offset[1]} width={view.image.width} height={view.image.height} rx={view.radius} />
-                  </clipPath>
-                </defs>
-                <g clipPath={`url(#${clip})`}>
-                  {view.image.placeholder && (
-                    <image href={view.image.placeholder} x={view.offset[0]} y={view.offset[1]} width={view.image.width} height={view.image.height} preserveAspectRatio="none" />
-                  )}
-                  <image
-                    className="shot"
-                    data-ready={!view.image.placeholder || sharp === view.image.src || undefined}
-                    href={view.image.src}
-                    x={view.offset[0]}
-                    y={view.offset[1]}
-                    width={view.image.width}
-                    height={view.image.height}
-                  />
-                </g>
-                {[...new Set([hover, selected ?? -1])].map((i) => {
-                  const label = view.resolved[i]?.label;
-                  if (!label) return null;
-                  const p = view.fs * 0.25;
-                  return (
-                    <rect
-                      key={i}
-                      className={i === selected ? "note-sel" : "note-hover"}
-                      x={label[0] + view.offset[0] - p}
-                      y={label[1] + view.offset[1] - p}
-                      width={label[2] + p * 2}
-                      height={label[3] + p * 2}
-                      rx={view.fs / 4}
-                      strokeWidth={view.fs / 14}
-                      strokeDasharray={`${view.fs / 3} ${view.fs / 4}`}
-                    />
-                  );
-                })}
-                <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: view.overlay }} />
-                {!touched && !drag && !pending && (shot?.name ?? DEMO.name) === DEMO.name && (
-                  <g className="ghost" transform={`translate(${TRY.x + view.offset[0]} ${TRY.y + view.offset[1]})`} aria-hidden="true">
-                    <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={view.fs / 4} strokeWidth={view.fs / 11} strokeDasharray={`${view.fs / 3} ${view.fs / 4}`} />
-                    <g className="ghost-cursor">
-                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${view.fs / 42})`} />
-                    </g>
-                    <text className="ghost-label" x={TRY.w + view.fs * 0.8} y={TRY.h / 2 + view.fs * 0.35} fontSize={view.fs * 1.15}>
-                      try it: drag over this
-                    </text>
-                  </g>
-                )}
-                {sel && (
-                  <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={view.fs / 11} strokeDasharray={`${view.fs / 3} ${view.fs / 4}`} rx={view.fs / 5} />
-                )}
-              </svg>
-            ) : (
-              <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "")}</div>
-            )}
+            {!scheme && notes === DEMO_NOTES
+              ? (["light", "dark"] as const).map((k) => scene(initial[k], k, false))
+              : view
+                ? scene(view, shot ? (shot.scheme ?? "upload") : (scheme ?? "light"), true)
+                : <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "")}</div>}
             {pending && (
               <form
                 className="note-input"

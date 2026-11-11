@@ -1,6 +1,13 @@
 import type { Note } from "../../cli/src/types";
 
-export const DEMO = { src: "/demo.png", name: "notra-home.png", dpr: 2 };
+export type Scheme = "light" | "dark";
+// The same page captured in both colour schemes, at one layout: the demo shows the one matching the
+// visitor's system theme, and the notes below point at the same pixels in both.
+export const DEMOS: Record<Scheme, { src: string; name: string }> = {
+  light: { src: "/demo.png", name: "notra-home.png" },
+  dark: { src: "/demo-dark.png", name: "notra-home-dark.png" },
+};
+export const DEMO_DPR = 2;
 export const DEMO_NOTES: Note[] = [
   { text: "logos stand in for the brand names", to: [789, 320, 112, 112] },
   { text: "one loud action, the other stays quiet", to: [917, 923, 295, 44] },

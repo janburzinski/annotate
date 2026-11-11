@@ -5,7 +5,7 @@ import path from "node:path";
 import { deflateSync, inflateSync } from "node:zlib";
 import { parse } from "opentype.js";
 import { annotate, setFont } from "../../cli/src/render";
-import { DEMO, DEMO_NOTES, type View } from "./demo";
+import { DEMO_DPR, DEMO_NOTES, DEMOS, type Scheme, type View } from "./demo";
 
 const file = (name: string) => readFileSync(path.join(process.cwd(), "public", name));
 
@@ -111,15 +111,12 @@ function placeholder(img: { width: number; height: number; px: Uint8Array }, w =
   return `data:image/png;base64,${png.toString("base64")}`;
 }
 
-let cached: View | undefined;
-export function demoScene(): View {
-  if (cached) return cached;
-  const font = file("poah.ttf");
-  setFont(parse(font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength)));
-  const img = decodePng(file("demo.png"));
+function scene(scheme: Scheme): View {
+  const { src } = DEMOS[scheme];
+  const img = decodePng(file(src.slice(1)));
   const t0 = performance.now();
-  const a = annotate({ ...img, dpr: DEMO.dpr }, DEMO_NOTES, { dpr: DEMO.dpr });
-  cached = {
+  const a = annotate({ ...img, dpr: DEMO_DPR }, DEMO_NOTES, { dpr: DEMO_DPR });
+  return {
     width: a.scene.width,
     height: a.scene.height,
     background: a.scene.background,
@@ -127,10 +124,19 @@ export function demoScene(): View {
     fs: a.fs,
     offset: [a.offset[0], a.offset[1]],
     radius: a.scene.images[0].radius ?? 0,
-    image: { src: DEMO.src, width: img.width, height: img.height, placeholder: placeholder(img) },
+    image: { src, width: img.width, height: img.height, placeholder: placeholder(img) },
     resolved: a.resolved,
     warnings: a.warnings,
     ms: performance.now() - t0,
   };
+}
+
+let cached: Record<Scheme, View> | undefined;
+/** The demo laid out on both screenshots; the page shows the one for the visitor's theme. */
+export function demoScenes(): Record<Scheme, View> {
+  if (cached) return cached;
+  const font = file("poah.ttf");
+  setFont(parse(font.buffer.slice(font.byteOffset, font.byteOffset + font.byteLength)));
+  cached = { light: scene("light"), dark: scene("dark") };
   return cached;
 }

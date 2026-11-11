@@ -27,7 +27,7 @@
   --ink-soft: light-dark(rgb(29 63 214 / 0.09), rgb(138 164 255 / 0.15));
   --ok: light-dark(#15803d, #4ade80);
   --warn: light-dark(#b45309, #fbbf24);
-  /* The stage stays light in both modes: the engine draws on a light surface, like the CLI. */
+  /* Behind screenshots: the engine's own neutral surface, light in both modes, like the CLI's output. */
   --stage: #fff;
   --outline: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
 
@@ -262,6 +262,27 @@ h2 {
 .shot[data-ready] {
   opacity: 1;
 }
+/* The demo's own marks (hint, selection, highlights) use the engine's ink for the surface below. Before the
+   page knows the theme it holds a scene per theme, and only the one for the system theme shows. */
+.stage {
+  --demo-ink: #1d3fd6;
+}
+.scene[data-scheme="dark"] {
+  --demo-ink: #7b9bff;
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  .scene[data-scheme="light"] {
+    display: none;
+  }
+  .scene[data-scheme="dark"] {
+    display: block;
+  }
+}
+.sel {
+  fill: color-mix(in srgb, var(--demo-ink) 8%, transparent);
+  stroke: var(--demo-ink);
+}
 .stage-loading {
   display: grid;
   place-items: center;
@@ -387,13 +408,13 @@ h2 {
 }
 .note-hover,
 .note-sel {
-  fill: rgb(29 63 214 / 0.06);
+  fill: color-mix(in srgb, var(--demo-ink) 7%, transparent);
   stroke: none;
   pointer-events: none;
 }
 .note-sel {
-  fill: rgb(29 63 214 / 0.08);
-  stroke: #1d3fd6;
+  fill: color-mix(in srgb, var(--demo-ink) 9%, transparent);
+  stroke: var(--demo-ink);
 }
 
 /* Dock tools: a label with its shortcut on hover. */
@@ -459,8 +480,8 @@ h2 {
   pointer-events: none;
 }
 .ghost-box {
-  fill: rgb(29 63 214 / 0.06);
-  stroke: #1d3fd6;
+  fill: color-mix(in srgb, var(--demo-ink) 7%, transparent);
+  stroke: var(--demo-ink);
   transform-box: fill-box;
   transform-origin: 0 0;
   animation: ghost-box 2.8s var(--ease) infinite;
@@ -474,7 +495,7 @@ h2 {
   animation: ghost-cursor 2.8s var(--ease) infinite;
 }
 .ghost-label {
-  fill: #1d3fd6;
+  fill: var(--demo-ink);
   font-family: var(--font-hand);
   animation: ghost-fade 2.8s ease infinite;
 }

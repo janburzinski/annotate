@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "assets": "mkdir -p public/examples && cp ../cli/fonts/Poah-Regular.ttf public/poah.ttf && cp ../docs/examples/notra-home.png public/demo.png && cp ../docs/example.png ../docs/notra-pricing.png ../docs/notra-themes.png public/examples/",
+    "assets": "mkdir -p public/examples && cp ../cli/fonts/Poah-Regular.ttf public/poah.ttf && cp ../docs/examples/notra-home.png public/demo.png && cp ../docs/examples/notra-home-dark.png public/demo-dark.png && cp ../docs/example.png ../docs/notra-pricing.png ../docs/notra-themes.png public/examples/",
     "dev": "bun run assets && next dev",
     "build": "bun run assets && next build",
     "start": "next start",

@@ -1,5 +1,5 @@
 import { Bench } from "./bench";
-import { demoScene } from "./demo-scene";
+import { demoScenes } from "./demo-scene";
 import { CopyPrompt } from "./copy";
 import { type Example, Gallery } from "./gallery";
 import { Icon } from "./icons";
@@ -34,7 +34,7 @@ export function Landing() {
             </a>
           </div>
           <div className="demo">
-            <Bench initial={demoScene()} />
+            <Bench initial={demoScenes()} />
           </div>
         </section>
 
