@@ -1,6 +1,6 @@
-import type { CSSProperties } from "react";
 import { Bench } from "./bench";
 import { Command, CopyPrompt } from "./copy";
+import { type Example, Gallery } from "./gallery";
 import { Icon } from "./icons";
 
 const REPO = "https://github.com/janburzinski/annotate";
@@ -8,7 +8,7 @@ const CLONE = `git clone ${REPO} ~/.agents/skills/annotate`;
 const PROMPT =
   "Install the annotate skill from github.com/janburzinski/annotate (clone it into ~/.agents/skills/annotate and run bun install in its cli folder). Use it whenever a marked-up screenshot or a before and after would explain a UI change better than text.";
 
-const EXAMPLES = [
+const EXAMPLES: Example[] = [
   { src: "/examples/example.png", alt: "An invite form before and after, with notes on spacing and button order", caption: "Before and after", w: 1927, h: 1577 },
   { src: "/examples/notra-themes.png", alt: "Pricing cards in light and dark mode with notes", caption: "Light and dark", w: 1408, h: 2000 },
   { src: "/examples/notra-pricing.png", alt: "A dense plan comparison table with notes in the margins", caption: "A dense table", w: 2000, h: 1578, wide: true },
@@ -51,15 +51,7 @@ export function Landing() {
         <section className="wrap section" id="examples">
           <h2>Rendered by the CLI</h2>
           <p className="section-lead">Each image comes from a spec in the repo&apos;s docs/examples.</p>
-          <div className="gallery">
-            {EXAMPLES.map((e) => (
-              <figure key={e.src} className={e.wide ? "wide" : undefined} style={{ "--r": e.w / e.h } as CSSProperties}>
-                {/* biome-ignore lint/performance/noImgElement: static PNGs, shown at their own size */}
-                <img src={e.src} alt={e.alt} width={e.w} height={e.h} loading="lazy" />
-                <figcaption>{e.caption}</figcaption>
-              </figure>
-            ))}
-          </div>
+          <Gallery items={EXAMPLES} />
         </section>
       </main>
 

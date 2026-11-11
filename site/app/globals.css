@@ -698,6 +698,85 @@ h2 {
   outline: 1px solid var(--outline);
   outline-offset: -1px;
 }
+.zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: zoom-in;
+}
+
+/* Lightbox: the image grows out of its thumbnail (animated from gallery.tsx) over a dimmed page. */
+html:has(.lightbox[open]) {
+  overflow: hidden;
+}
+.lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+.lightbox[open] {
+  display: grid;
+  place-items: center;
+}
+.lightbox::backdrop {
+  background: oklch(0.145 0.004 265 / 0.72);
+  backdrop-filter: blur(6px);
+  animation: fade 0.25s ease-out;
+  transition: opacity 0.2s ease-out;
+}
+.lightbox[data-closing]::backdrop {
+  opacity: 0;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.lightbox img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(100vw - 32px, 1800px);
+  max-height: calc(100dvh - 48px);
+  border-radius: 12px;
+  background: var(--stage);
+  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.08), 0 24px 64px -16px oklch(0 0 0 / 0.6);
+  transform-origin: top left;
+}
+.lightbox-close {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.2s ease-out, transform 0.16s var(--ease);
+}
+.lightbox-close:hover {
+  background: oklch(1 0 0 / 0.2);
+}
+.lightbox-close:active {
+  transform: scale(0.96);
+}
+.lightbox[data-closing] .lightbox-close {
+  opacity: 0;
+}
 .gallery figcaption {
   padding: 10px 8px 4px;
   font-size: 13px;
