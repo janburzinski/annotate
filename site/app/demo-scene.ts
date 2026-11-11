@@ -2,7 +2,7 @@
 // place and nothing pops in while the browser loads the engine. The browser's own run gives the same scene.
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { deflateSync, inflateSync } from "node:zlib";
+import { inflateSync } from "node:zlib";
 import { parse } from "opentype.js";
 import { annotate, setFont } from "../../cli/src/render";
 import { DEMO_DPR, DEMO_NOTES, DEMOS, type Scheme, type View } from "./demo";
@@ -65,50 +65,17 @@ function decodePng(buf: Buffer) {
   return { width, height, px };
 }
 
-const CRC = Array.from({ length: 256 }, (_, n) => {
-  let c = n;
-  for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
-  return c >>> 0;
-});
-const crc32 = (b: Uint8Array) => {
-  let c = 0xffffffff;
-  for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8);
-  return (c ^ 0xffffffff) >>> 0;
-};
-function chunk(type: string, data: Uint8Array) {
-  const out = Buffer.alloc(12 + data.length);
-  out.writeUInt32BE(data.length, 0);
-  out.write(type, 4, "latin1");
-  out.set(data, 8);
-  out.writeUInt32BE(crc32(out.subarray(4, 8 + data.length)), 8 + data.length);
-  return out;
-}
-
-/** A tiny box-averaged copy as a PNG data URL: the browser scales it up blurry until the real image loads. */
-function placeholder(img: { width: number; height: number; px: Uint8Array }, w = 32) {
-  const h = Math.max(1, Math.round((img.height / img.width) * w));
-  const raw = Buffer.alloc((w * 3 + 1) * h);
-  for (let y = 0; y < h; y++) {
-    for (let x = 0; x < w; x++) {
-      const sum = [0, 0, 0];
-      let n = 0;
-      for (let sy = Math.floor((y * img.height) / h); sy < Math.floor(((y + 1) * img.height) / h); sy += 4)
-        for (let sx = Math.floor((x * img.width) / w); sx < Math.floor(((x + 1) * img.width) / w); sx += 4) {
-          const o = (sy * img.width + sx) * 4;
-          sum[0] += img.px[o];
-          sum[1] += img.px[o + 1];
-          sum[2] += img.px[o + 2];
-          n++;
-        }
-      for (let k = 0; k < 3; k++) raw[y * (w * 3 + 1) + 1 + x * 3 + k] = Math.round(sum[k] / Math.max(1, n));
-    }
+/** The screenshot's average colour, as a flat backdrop in the rare case the image is not there yet. */
+function averageColor(img: { width: number; height: number; px: Uint8Array }) {
+  const sum = [0, 0, 0];
+  let n = 0;
+  for (let i = 0; i < img.px.length; i += 4 * 97) {
+    sum[0] += img.px[i];
+    sum[1] += img.px[i + 1];
+    sum[2] += img.px[i + 2];
+    n++;
   }
-  const ihdr = Buffer.alloc(13);
-  ihdr.writeUInt32BE(w, 0);
-  ihdr.writeUInt32BE(h, 4);
-  ihdr.set([8, 2, 0, 0, 0], 8);
-  const png = Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", ihdr), chunk("IDAT", deflateSync(raw)), chunk("IEND", new Uint8Array())]);
-  return `data:image/png;base64,${png.toString("base64")}`;
+  return `#${sum.map((v) => Math.round(v / n).toString(16).padStart(2, "0")).join("")}`;
 }
 
 function scene(scheme: Scheme): View {
@@ -124,7 +91,7 @@ function scene(scheme: Scheme): View {
     fs: a.fs,
     offset: [a.offset[0], a.offset[1]],
     radius: a.scene.images[0].radius ?? 0,
-    image: { src, width: img.width, height: img.height, placeholder: placeholder(img) },
+    image: { src, width: img.width, height: img.height, fill: averageColor(img) },
     resolved: a.resolved,
     warnings: a.warnings,
     ms: performance.now() - t0,

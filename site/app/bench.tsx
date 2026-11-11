@@ -133,8 +133,6 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
   const [selected, setSelected] = useState<number>();
   const [hover, setHover] = useState(-1);
   const [menu, setMenu] = useState<{ left: number; top: number }>();
-  // The sharp screenshot fades in over its blurred placeholder once fully decoded, never drawing in row by row.
-  const [sharp, setSharp] = useState<string>();
   const svgRef = useRef<SVGSVGElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGGElement>(null);
@@ -173,8 +171,8 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
         fs: a.fs,
         offset: [a.offset[0], a.offset[1]],
         radius: a.scene.images[0].radius ?? 0,
-        // The demo keeps the server's placeholder underneath, so taking over changes nothing on screen.
-        image: { src: shot.src, width: shot.pixels.width, height: shot.pixels.height, placeholder: shot.scheme && initial[shot.scheme].image.placeholder },
+        // The demo keeps the server's backdrop colour, so taking over changes nothing on screen.
+        image: { src: shot.src, width: shot.pixels.width, height: shot.pixels.height, fill: shot.scheme && initial[shot.scheme].image.fill },
         resolved: a.resolved,
         warnings: a.warnings,
         ms: performance.now() - t0,
@@ -184,15 +182,6 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
     }
   }, [shot, ready, notes, initial]);
   const fallback = initial[scheme ?? "light"];
-  const src = result && !("error" in result) ? result.image.src : fallback.image.src;
-  useEffect(() => {
-    const img = new Image();
-    img.src = src;
-    img
-      .decode()
-      .catch(() => {})
-      .then(() => setSharp(src));
-  }, [src]);
   // Until the engine runs here, show the scene laid out on the server.
   const view: View | undefined = result ? ("error" in result ? undefined : result) : notes === DEMO_NOTES ? fallback : undefined;
 
@@ -463,12 +452,9 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
         </clipPath>
       </defs>
       <g clipPath={`url(#${clip}${key})`}>
-        {v.image.placeholder && (
-          <image href={v.image.placeholder} x={v.offset[0]} y={v.offset[1]} width={v.image.width} height={v.image.height} preserveAspectRatio="none" />
-        )}
+        {v.image.fill && <rect x={v.offset[0]} y={v.offset[1]} width={v.image.width} height={v.image.height} fill={v.image.fill} />}
         <image
           className="shot"
-          data-ready={!v.image.placeholder || sharp === v.image.src || undefined}
           href={v.image.src}
           x={v.offset[0]}
           y={v.offset[1]}

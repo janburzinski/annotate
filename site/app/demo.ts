@@ -24,7 +24,7 @@ export type View = {
   fs: number;
   offset: [number, number];
   radius: number;
-  image: { src: string; width: number; height: number; placeholder?: string };
+  image: { src: string; width: number; height: number; fill?: string };
   resolved: Note[];
   warnings: string[];
   ms: number;

@@ -256,11 +256,10 @@ h2 {
   cursor: crosshair;
 }
 .shot {
-  opacity: 0;
-  transition: opacity 0.3s ease-out;
+  transition: opacity 0.2s ease-out;
 }
-.shot[data-ready] {
-  opacity: 1;
+html.shot-wait .scene .shot {
+  opacity: 0;
 }
 /* The demo's own marks (hint, selection, highlights) use the engine's ink for the surface below. Before the
    page knows the theme it holds a scene per theme, and only the one for the system theme shows. */
