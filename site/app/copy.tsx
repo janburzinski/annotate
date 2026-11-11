@@ -1,21 +1,33 @@
 "use client";
 
 import { useState } from "react";
+import { Icon } from "./icons";
 
-export function Copy({ text, label = "Copy" }: { text: string; label?: string }) {
+export function CopyButton({ text, label = "Copy" }: { text: string; label?: string }) {
   const [done, setDone] = useState(false);
   return (
     <button
       type="button"
-      className="button"
-      data-variant="ghost"
+      className="icon-btn"
+      aria-label={done ? "Copied" : label}
+      title={done ? "Copied" : label}
       onClick={() => {
         navigator.clipboard.writeText(text);
         setDone(true);
-        setTimeout(() => setDone(false), 1200);
+        setTimeout(() => setDone(false), 1400);
       }}
     >
-      {done ? "Copied" : label}
+      <Icon name={done ? "check" : "copy"} />
     </button>
+  );
+}
+
+export function Command({ text }: { text: string }) {
+  return (
+    <div className="command">
+      <span className="prompt">$</span>
+      <code>{text}</code>
+      <CopyButton text={text} label="Copy command" />
+    </div>
   );
 }

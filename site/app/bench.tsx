@@ -1,6 +1,8 @@
 "use client";
 
 import { parse } from "opentype.js";
+import { CopyButton } from "./copy";
+import { Icon } from "./icons";
 import { type PointerEvent, type ReactNode, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 // The CLI's own layout engine: the same code places these labels when an agent runs `annotate`.
 import { annotate, setFont } from "../../cli/src/render";
@@ -11,11 +13,13 @@ type Shot = { src: string; name: string; pixels: Pixels };
 type Drag = { x0: number; y0: number; x1: number; y1: number };
 type Pending = { to: number[]; left: number; top: number };
 
-const TOOLS: { id: Tool; label: string }[] = [
-  { id: "circle", label: "Circle" },
-  { id: "box", label: "Box" },
-  { id: "underline", label: "Underline" },
-  { id: "arrow", label: "Arrow" },
+export type Chrome = "dock" | "window" | "keys";
+
+const TOOLS: { id: Tool; label: string; key: string }[] = [
+  { id: "circle", label: "Circle", key: "1" },
+  { id: "box", label: "Box", key: "2" },
+  { id: "underline", label: "Underline", key: "3" },
+  { id: "arrow", label: "Arrow", key: "4" },
 ];
 
 const DEMO = { src: "/demo.png", name: "notra-home.png", dpr: 2 };
@@ -114,7 +118,7 @@ function animateIn(els: Element[]) {
   }
 }
 
-export function Bench({ layout = "stacked" }: { layout?: "stacked" | "split" }) {
+export function Bench({ chrome = "dock" }: { chrome?: Chrome }) {
   const [shot, setShot] = useState<Shot>();
   const [ready, setReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
@@ -125,7 +129,6 @@ export function Bench({ layout = "stacked" }: { layout?: "stacked" | "split" }) 
   const [touched, setTouched] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string>();
-  const [copied, setCopied] = useState(false);
   const svgRef = useRef<SVGSVGElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGGElement>(null);
@@ -248,116 +251,174 @@ export function Bench({ layout = "stacked" }: { layout?: "stacked" | "split" }) 
   const layer = ok ? result.scene.images[0] : undefined;
   const sel = drag && ok ? { x: Math.min(drag.x0, drag.x1) + result.offset[0], y: Math.min(drag.y0, drag.y1) + result.offset[1], w: Math.abs(drag.x1 - drag.x0), h: Math.abs(drag.y1 - drag.y0) } : undefined;
 
+  // 1-4 pick a tool, Z undoes, R resets, O opens a screenshot; never while typing a note.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const t = e.target as HTMLElement;
+      if (t.closest("input, textarea, [contenteditable]") || e.altKey || pending) return;
+      const tool = TOOLS.find((x) => x.key === e.key);
+      if (tool && !e.metaKey && !e.ctrlKey) setTool(tool.id);
+      else if (e.key.toLowerCase() === "z" && !e.shiftKey) {
+        e.preventDefault();
+        setNotes((n) => n.slice(0, -1));
+      } else if (e.key.toLowerCase() === "r" && !e.metaKey && !e.ctrlKey) reset();
+      else if (e.key.toLowerCase() === "o" && !e.metaKey && !e.ctrlKey) fileRef.current?.click();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
+
+  const tools = (variant: "icon" | "key") =>
+    TOOLS.map((t) =>
+      variant === "key" ? (
+        <button key={t.id} type="button" className="key-btn" aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>
+          <kbd>{t.key}</kbd>
+          {t.label}
+        </button>
+      ) : (
+        <button
+          key={t.id}
+          type="button"
+          className="icon-btn tool"
+          data-label={`${t.label}  ${t.key}`}
+          aria-label={t.label}
+          aria-pressed={tool === t.id}
+          onClick={() => setTool(t.id)}
+        >
+          <Icon name={t.id} />
+        </button>
+      ),
+    );
+  const actions = (variant: "icon" | "key") => {
+    const list = [
+      { id: "undo", label: "Undo", key: "Z", icon: "undo" as const, run: () => setNotes((n) => n.slice(0, -1)), off: !notes.length },
+      { id: "reset", label: "Reset", key: "R", icon: "reset" as const, run: reset, off: false },
+      { id: "open", label: "Your screenshot", key: "O", icon: "image" as const, run: () => fileRef.current?.click(), off: false },
+    ];
+    return list.map((a) =>
+      variant === "key" ? (
+        <button key={a.id} type="button" className="key-btn" disabled={a.off} onClick={a.run}>
+          <kbd>{a.key}</kbd>
+          {a.label}
+        </button>
+      ) : (
+        <button key={a.id} type="button" className="icon-btn tool" data-label={`${a.label}  ${a.key}`} aria-label={a.label} disabled={a.off} onClick={a.run}>
+          <Icon name={a.icon} />
+        </button>
+      ),
+    );
+  };
+
   return (
-    <div className="bench" data-layout={layout}>
-      <div className="bench-bar">
-        <div className="segmented" role="group" aria-label="Mark">
-          {TOOLS.map((t) => (
-            <button key={t.id} type="button" aria-pressed={tool === t.id} onClick={() => setTool(t.id)}>
-              {t.label}
-            </button>
-          ))}
+    <div className="bench" data-chrome={chrome}>
+      <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && openShot(e.target.files[0])} />
+      {chrome === "window" && (
+        <div className="window-bar">
+          <span className="lights" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </span>
+          <span className="title">{shot?.name ?? "notra-home.png"}</span>
+          <div className="tools" role="toolbar" aria-label="Annotate">
+            {tools("icon")}
+            <span className="sep" />
+            {actions("icon")}
+          </div>
         </div>
-        <div className="group">
-          <button type="button" className="button" data-variant="ghost" disabled={!notes.length} onClick={() => setNotes((n) => n.slice(0, -1))}>
-            Undo
-          </button>
-          <button type="button" className="button" data-variant="ghost" onClick={reset}>
-            Reset
-          </button>
-          <button type="button" className="button" onClick={() => fileRef.current?.click()}>
-            Your screenshot
-          </button>
-          <input ref={fileRef} type="file" accept="image/*" hidden onChange={(e) => e.target.files?.[0] && openShot(e.target.files[0])} />
-        </div>
-      </div>
+      )}
 
       <div className="bench-body">
-        <div
-          ref={stageRef}
-          className={`stage${dropping ? " drop-active" : ""}`}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDropping(true);
-          }}
-          onDragLeave={() => setDropping(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setDropping(false);
-            const f = e.dataTransfer.files[0];
-            if (f) openShot(f);
-          }}
-        >
-          {ok && shot && layer ? (
-            <svg
-              ref={svgRef}
-              viewBox={`0 0 ${result.scene.width} ${result.scene.height}`}
-              role="img"
-              aria-label={`Screenshot with ${notes.length} handwritten notes`}
-              onPointerDown={onDown}
-              onPointerMove={onMove}
-              onPointerUp={onUp}
-              onPointerCancel={() => setDrag(undefined)}
-            >
-              {result.scene.background && <rect width={result.scene.width} height={result.scene.height} fill={result.scene.background} />}
-              <defs>
-                <clipPath id={clip}>
-                  <rect x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} rx={layer.radius} />
-                </clipPath>
-              </defs>
-              <image href={shot.src} x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} clipPath={`url(#${clip})`} />
-              <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: result.scene.overlay }} />
-              {sel && (
-                <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} rx={result.fs / 5} />
-              )}
-            </svg>
-          ) : (
-            <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "loading the engine…")}</div>
-          )}
-          {ok && (
-            <div className="stage-hint" style={{ opacity: touched || pending ? 0 : 1 }}>
-              Drag over anything to annotate it
+        <div className="stage-wrap">
+          <div
+            ref={stageRef}
+            className={`stage${dropping ? " drop-active" : ""}`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setDropping(true);
+            }}
+            onDragLeave={() => setDropping(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setDropping(false);
+              const f = e.dataTransfer.files[0];
+              if (f) openShot(f);
+            }}
+          >
+            {ok && shot && layer ? (
+              <svg
+                ref={svgRef}
+                viewBox={`0 0 ${result.scene.width} ${result.scene.height}`}
+                role="img"
+                aria-label={`Screenshot with ${notes.length} handwritten notes`}
+                onPointerDown={onDown}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerCancel={() => setDrag(undefined)}
+              >
+                {result.scene.background && <rect width={result.scene.width} height={result.scene.height} fill={result.scene.background} />}
+                <defs>
+                  <clipPath id={clip}>
+                    <rect x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} rx={layer.radius} />
+                  </clipPath>
+                </defs>
+                <image href={shot.src} x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} clipPath={`url(#${clip})`} />
+                <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: result.scene.overlay }} />
+                {sel && (
+                  <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} rx={result.fs / 5} />
+                )}
+              </svg>
+            ) : (
+              <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "loading the engine…")}</div>
+            )}
+            {ok && (
+              <div className="stage-hint" style={{ opacity: touched || pending ? 0 : 1 }}>
+                Drag over anything to annotate it
+              </div>
+            )}
+            {pending && (
+              <form
+                className="note-input"
+                style={{ left: pending.left, top: pending.top }}
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  commit();
+                }}
+              >
+                <input
+                  // biome-ignore lint/a11y/noAutofocus: the input appears because the user just marked something
+                  autoFocus
+                  value={text}
+                  maxLength={80}
+                  placeholder="what's the point?"
+                  aria-label="Note text"
+                  onChange={(e) => setText(e.target.value)}
+                  onKeyDown={(e) => e.key === "Escape" && setPending(undefined)}
+                />
+                <button type="submit">Place</button>
+              </form>
+            )}
+          </div>
+          {chrome === "dock" && (
+            <div className="dock" role="toolbar" aria-label="Annotate">
+              {tools("icon")}
+              <span className="sep" />
+              {actions("icon")}
             </div>
           )}
-          {pending && (
-            <form
-              className="note-input"
-              style={{ left: pending.left, top: pending.top }}
-              onSubmit={(e) => {
-                e.preventDefault();
-                commit();
-              }}
-            >
-              <input
-                // biome-ignore lint/a11y/noAutofocus: the input appears because the user just marked something
-                autoFocus
-                value={text}
-                maxLength={80}
-                placeholder="what's the point?"
-                aria-label="Note text"
-                onChange={(e) => setText(e.target.value)}
-                onKeyDown={(e) => e.key === "Escape" && setPending(undefined)}
-              />
-              <button type="submit">Place</button>
-            </form>
-          )}
         </div>
+
+        {chrome === "keys" && (
+          <div className="keys-bar" role="toolbar" aria-label="Annotate">
+            <div className="group">{tools("key")}</div>
+            <div className="group">{actions("key")}</div>
+          </div>
+        )}
 
         <div className="spec">
           <div className="spec-head">
             <span>spec.json · what your agent writes</span>
-            <button
-              type="button"
-              className="button"
-              data-variant="ghost"
-              onClick={() => {
-                navigator.clipboard.writeText(spec);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 1200);
-              }}
-            >
-              {copied ? "Copied" : "Copy"}
-            </button>
+            <CopyButton text={spec} label="Copy spec" />
           </div>
           <pre>{highlight(spec)}</pre>
         </div>

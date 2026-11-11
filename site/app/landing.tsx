@@ -1,48 +1,50 @@
-import { Bench } from "./bench";
-import { Copy } from "./copy";
+import { Bench, type Chrome } from "./bench";
+import { Command, CopyButton } from "./copy";
+import { Icon } from "./icons";
 
-export type Variant = "stacked" | "split" | "paper";
-export const VARIANTS: Variant[] = ["stacked", "split", "paper"];
+export type Variant = "studio" | "window" | "terminal";
+export const VARIANTS: Variant[] = ["studio", "window", "terminal"];
+const CHROME: Record<Variant, Chrome> = { studio: "dock", window: "window", terminal: "keys" };
 
 const REPO = "https://github.com/janburzinski/annotate";
 const CLONE = `git clone ${REPO} ~/.agents/skills/annotate`;
-const INSTALL = `${CLONE}
+const SETUP = [
+  "git clone https://github.com/janburzinski/annotate \\",
+  "  ~/.agents/skills/annotate",
+  "cd ~/.agents/skills/annotate/cli && bun install",
+  "ln -s $PWD/src/index.ts ~/.local/bin/annotate",
+];
+const MANUAL = `${CLONE}
 cd ~/.agents/skills/annotate/cli && bun install
 mkdir -p ~/.local/bin && ln -s ~/.agents/skills/annotate/cli/src/index.ts ~/.local/bin/annotate
 ln -s ~/.agents/skills/annotate ~/.claude/skills/annotate   # Claude Code`;
-const PROMPT = `Install the annotate skill from github.com/janburzinski/annotate, then show me a
-before and after of the change you just made to the login page.`;
+const PROMPT = "install the annotate skill from github.com/janburzinski/annotate, then show me a before and after of your last change";
+
+const LEAD =
+  "A skill and CLI that turns a short JSON spec into handwritten notes and arrows on a screenshot. Labels find empty space, arrows land on the element. The demo below runs the real layout engine.";
 
 const STEPS = [
   {
     title: "Point at the element",
-    body: "Capture a page and target CSS selectors, or read boxes off annotate grid for any other image.",
-    code: `{
-  "url": "http://localhost:3000/login",
-  "clip": "form",
+    body: "Capture a page and target it by CSS selector, or read boxes off annotate grid for any other image.",
+    code: `{ "url": "localhost:3000/login",
   "notes": [{
     "text": "error sits under its field",
-    "target": "#email-error"
-  }]
-}`,
+    "target": "#email-error" }] }`,
   },
   {
     title: "The engine places it",
-    body: "It scores every spot around the target for text, edges and arrow crossings, then sets the note in Poah and draws a curved arrow.",
+    body: "Every spot around the target is scored for text, edges and arrow crossings. The note is set in Poah, the arrow curves in.",
     code: `$ annotate login.json
-{
-  "out": "login.png",
-  "warnings": [],
-  "resolved": { "notes": [{ "at": [..], "tip": [..] }] }
-}`,
+"warnings": [],
+"resolved": { "notes": [{ "at", "tip" }] }`,
   },
   {
-    title: "Check, then ship it",
-    body: "Warnings say which label to move. The PNG goes into the pull request, so reviewers see the decision instead of hunting for it.",
+    title: "Ship it with the PR",
+    body: "Warnings say which label to move. The PNG goes into the pull request, so reviewers see the decision.",
     code: `$ gh pr edit --attach login.png
 | Before | After |
-| --- | --- |
-| ![](./before.png) | ![](./login.png) |`,
+| ![](before.png) | ![](login.png) |`,
   },
 ];
 
@@ -52,11 +54,95 @@ const EXAMPLES = [
   { src: "/examples/notra-pricing.png", alt: "A dense plan comparison table with notes in the margins", caption: "Dense pages: labels go where there is room", w: 2000, h: 1578, wide: true },
 ];
 
+function Badge() {
+  return (
+    <span className="badge">
+      <b>v0.1.0</b> agent skill + CLI · MIT
+    </span>
+  );
+}
+
+function Title() {
+  return (
+    <h1>
+      Your agent marks up screenshots <span className="hand">like a designer.</span>
+    </h1>
+  );
+}
+
+function Hero({ variant }: { variant: Variant }) {
+  if (variant === "terminal")
+    return (
+      <section className="wrap hero">
+        <div className="hero-split">
+          <div>
+            <Badge />
+            <Title />
+            <p className="lead">{LEAD}</p>
+            <div className="cta">
+              <a className="btn" data-variant="primary" href="#demo">
+                Try the demo
+              </a>
+              <a className="btn" href={REPO}>
+                <Icon name="github" />
+                GitHub
+              </a>
+            </div>
+          </div>
+          <div className="term">
+            <div className="term-bar">
+              <i />
+              <i />
+              <i />
+              <span>install</span>
+              <CopyButton text={MANUAL} label="Copy install steps" />
+            </div>
+            <pre>
+              {SETUP.map((l, i) => (
+                <span key={l}>
+                  {l.startsWith(" ") ? "" : <span className="p">$ </span>}
+                  {l}
+                  {i < SETUP.length - 1 ? "\n" : ""}
+                </span>
+              ))}
+              {"\n\n"}
+              <span className="c"># or tell your agent:</span>
+              {"\n"}
+              <span className="c"># {PROMPT}</span>
+            </pre>
+          </div>
+        </div>
+        <div id="demo" style={{ marginTop: "var(--space-8)" }}>
+          <Bench chrome="keys" />
+        </div>
+      </section>
+    );
+
+  const center = variant === "window";
+  return (
+    <section className="wrap hero" data-align={center ? "center" : undefined}>
+      <Badge />
+      <Title />
+      <p className="lead">{LEAD}</p>
+      <div className="cta">
+        <Command text={CLONE} />
+        <a className="btn" href={REPO}>
+          <Icon name="github" />
+          GitHub
+        </a>
+      </div>
+      <div style={{ marginTop: "var(--space-8)", textAlign: "left" }}>
+        <Bench chrome={CHROME[variant]} />
+      </div>
+    </section>
+  );
+}
+
 export function Landing({ variant }: { variant: Variant }) {
   return (
-    <div className="page" data-theme={variant === "paper" ? "paper" : undefined}>
+    <div className="page">
       <header className="topbar">
-        <div className="topbar-inner">
+        <div className="wrap">
           <a className="wordmark" href="/">
             annotate
           </a>
@@ -70,30 +156,16 @@ export function Landing({ variant }: { variant: Variant }) {
       </header>
 
       <main>
-        <section className="content hero">
-          <div className="eyebrow">Agent skill + CLI · v0.1.0</div>
-          <h1>
-            Your agent marks up screenshots <span className="hand">like a designer would.</span>
-          </h1>
-          <p className="lead">
-            annotate turns a short JSON spec into handwritten notes and arrows on a screenshot. Labels land in empty space, arrows land on the element,
-            and before/after pairs line up. The demo runs the CLI&apos;s real layout engine, so try it.
-          </p>
-          <div className="install">
-            <code>{CLONE}</code>
-            <Copy text={CLONE} />
-          </div>
-          <Bench layout={variant === "split" ? "split" : "stacked"} />
-        </section>
+        <Hero variant={variant} />
 
-        <section className="content section" id="how">
+        <section className="wrap section" id="how">
           <div className="section-head">
-            <div className="eyebrow">How it works</div>
+            <div className="eyebrow">how it works</div>
             <h2>The agent picks the target. The CLI does the layout.</h2>
           </div>
           <div className="steps">
             {STEPS.map((s, i) => (
-              <div className="step" key={s.title}>
+              <div className="card" key={s.title}>
                 <div className="n">0{i + 1}</div>
                 <h3>{s.title}</h3>
                 <p>{s.body}</p>
@@ -103,11 +175,11 @@ export function Landing({ variant }: { variant: Variant }) {
           </div>
         </section>
 
-        <section className="content section" id="examples">
+        <section className="wrap section" id="examples">
           <div className="section-head">
-            <div className="eyebrow">Examples</div>
+            <div className="eyebrow">examples</div>
             <h2>Same engine, real screenshots.</h2>
-            <p>Every image here was rendered by the CLI from a spec in the repo&apos;s docs/examples.</p>
+            <p>Each image was rendered by the CLI from a spec in the repo&apos;s docs/examples.</p>
           </div>
           <div className="gallery">
             {EXAMPLES.map((e) => (
@@ -120,29 +192,38 @@ export function Landing({ variant }: { variant: Variant }) {
           </div>
         </section>
 
-        <section className="content section" id="install">
+        <section className="wrap section" id="install">
           <div className="section-head">
-            <div className="eyebrow">Install</div>
+            <div className="eyebrow">install</div>
             <h2>Give it to your agent.</h2>
-            <p>Needs Bun 1.2 or newer. Page capture uses any Chromium on the machine. Or ask your agent to do it:</p>
+            <p>Needs Bun 1.2 or newer. Page capture uses any Chromium on the machine.</p>
           </div>
-          <pre className="prompt">{PROMPT}</pre>
-          <div className="steps" style={{ marginTop: "var(--space-5)", gridTemplateColumns: "minmax(0, 1fr)" }}>
-            <div className="step">
-              <div className="n">by hand</div>
-              <pre>{INSTALL}</pre>
+          <div className="install-grid">
+            <div className="card">
+              <div className="card-head">
+                <span>Ask your agent</span>
+                <CopyButton text={PROMPT} label="Copy prompt" />
+              </div>
+              <p className="prompt-text">{PROMPT}</p>
+            </div>
+            <div className="card">
+              <div className="card-head">
+                <span>Or by hand</span>
+                <CopyButton text={MANUAL} label="Copy install steps" />
+              </div>
+              <pre>{MANUAL}</pre>
             </div>
           </div>
         </section>
       </main>
 
-      <footer className="content footer">
+      <footer className="wrap footer">
         <p>
-          Notes are set in <a href="https://poah.laks.sh/">Poah</a>, a handwriting font by <a href="https://x.com/blakssh">Lakshay Bhushan</a>, under the
-          SIL Open Font License 1.1. The style is his, too.
+          Notes are set in <a href="https://poah.laks.sh/">Poah</a>, a handwriting font by <a href="https://x.com/blakssh">Lakshay Bhushan</a>, under the SIL Open
+          Font License 1.1. The style is his, too.
         </p>
         <p>
-          Code under the MIT license. <a href={REPO}>github.com/janburzinski/annotate</a>
+          Code under the MIT license · <a href={REPO}>github.com/janburzinski/annotate</a>
         </p>
       </footer>
     </div>

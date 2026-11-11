@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { Landing, VARIANTS, type Variant } from "../../landing";
 
-// Design iterations, side by side: /v/stacked, /v/split, /v/paper.
+// Design iterations, side by side: /v/studio, /v/window, /v/terminal.
 export function generateStaticParams() {
   return VARIANTS.map((variant) => ({ variant }));
 }

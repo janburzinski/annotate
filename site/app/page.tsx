@@ -1,5 +1,5 @@
 import { Landing } from "./landing";
 
 export default function Home() {
-  return <Landing variant="stacked" />;
+  return <Landing variant="studio" />;
 }
