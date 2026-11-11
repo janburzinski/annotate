@@ -282,6 +282,17 @@ html.shot-wait .scene .shot {
   fill: color-mix(in srgb, var(--demo-ink) 8%, transparent);
   stroke: var(--demo-ink);
 }
+.arrow-preview {
+  fill: none;
+  stroke: var(--demo-ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.arrow-preview circle {
+  fill: var(--demo-ink);
+  stroke: none;
+}
 .stage-loading {
   display: grid;
   place-items: center;

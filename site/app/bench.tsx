@@ -15,8 +15,8 @@ type Tool = Mark | "arrow";
 type Shot = { src: string; name: string; pixels: Pixels; scheme?: Scheme };
 /** `hit` is the note whose label the drag started on: a click there opens that note's menu. */
 type Drag = { x0: number; y0: number; x1: number; y1: number; hit: number };
-/** `index` is set when editing an existing note's text. */
-type Pending = { to: number[]; left: number; top: number; index?: number };
+/** `index` is set when editing an existing note's text; `at` pins the label where an arrow was drawn from. */
+type Pending = { to: number[]; left: number; top: number; index?: number; at?: [number, number] };
 
 const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: "circle", label: "Circle", key: "1" },
@@ -81,10 +81,32 @@ async function loadShot(src: string, name: string, dpr?: number): Promise<Shot> 
 function specJson(name: string, notes: Note[]) {
   const note = (n: Note) => {
     const parts = [`"text": ${JSON.stringify(n.text)}`, `"to": [${n.to?.join(", ")}]`];
+    if (Array.isArray(n.at)) parts.push(`"at": [${n.at.join(", ")}]`);
     if (n.mark) parts.push(`"mark": "${n.mark}"`);
     return `    { ${parts.join(", ")} }`;
   };
   return `{\n  "image": ${JSON.stringify(name)},\n  "notes": [\n${notes.map(note).join(",\n")}\n  ]\n}`;
+}
+
+/** The arrow tool's live preview: a dashed arrow from where the note will sit to what it points at. */
+function preview(d: Drag, v: View) {
+  const [ox, oy] = v.offset;
+  const s = [d.x0 + ox, d.y0 + oy];
+  const e = [d.x1 + ox, d.y1 + oy];
+  const len = Math.hypot(e[0] - s[0], e[1] - s[1]);
+  if (len < 10) return null;
+  const ux = (e[0] - s[0]) / len;
+  const uy = (e[1] - s[1]) / len;
+  const hl = v.fs * 0.5;
+  const hw = v.fs * 0.28;
+  const head = `M${e[0] - ux * hl - uy * hw},${e[1] - uy * hl + ux * hw} L${e[0]},${e[1]} L${e[0] - ux * hl + uy * hw},${e[1] - uy * hl - ux * hw}`;
+  return (
+    <g className="arrow-preview" strokeWidth={v.fs / 11} aria-hidden="true">
+      <circle cx={s[0]} cy={s[1]} r={v.fs * 0.18} />
+      <path d={`M${s[0]},${s[1]} L${e[0]},${e[1]}`} strokeDasharray={`${v.fs / 3} ${v.fs / 4}`} />
+      <path d={head} />
+    </g>
+  );
 }
 
 /** Draw on whatever the engine added since the last render: strokes trace, words fade in. */
@@ -265,7 +287,15 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
       setSelected(drag.hit);
       return;
     }
-    // A click without a drag points at one spot.
+    // The arrow tool draws an arrow: the note goes where the drag started, the arrow ends where it stopped.
+    // The engine keeps the label there ("at" is its top-left, so the first line sits on the start point).
+    if (tool === "arrow" && !click) {
+      const at: [number, number] = [Math.round(drag.x0), Math.round(drag.y0 - view.fs * 0.55)];
+      setPending({ to: [Math.round(drag.x1), Math.round(drag.y1)], at, ...under([drag.x0, drag.y0, 0, 0], INPUT_W) });
+      setText("");
+      return;
+    }
+    // A click without a drag points at one spot; the engine places the label.
     const to = click ? [x, y] : [x, y, w, h];
     setPending({ to, ...under([x, y, w, h], INPUT_W) });
     setText("");
@@ -322,6 +352,7 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
       return;
     }
     const note: Note = { text: text.trim() || "this one", to: pending.to };
+    if (pending.at) note.at = pending.at;
     if (tool !== "arrow" && pending.to.length === 4) note.mark = tool;
     setNotes((n) => [...n, note]);
     setPending(undefined);
@@ -424,7 +455,9 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
       : pending
         ? "Type a note, press Enter"
         : drag
-          ? "Let go to write a note"
+          ? tool === "arrow"
+            ? "Let go on what it points at"
+            : "Let go to write a note"
           : "";
   const picked = selected === undefined ? undefined : notes[selected];
 
@@ -493,7 +526,8 @@ export function Bench({ initial }: { initial: Record<Scheme, View> }) {
           </text>
         </g>
       )}
-      {live && sel && (
+      {live && drag && tool === "arrow" && preview(drag, v)}
+      {live && sel && tool !== "arrow" && (
         <rect className="sel" x={sel.x} y={sel.y} width={sel.w} height={sel.h} strokeWidth={v.fs / 11} strokeDasharray={`${v.fs / 3} ${v.fs / 4}`} rx={v.fs / 5} />
       )}
     </svg>
