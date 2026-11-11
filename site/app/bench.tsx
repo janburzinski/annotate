@@ -201,8 +201,8 @@ export function Bench() {
     const to = w < 10 && h < 10 ? [x, y] : [x, y, w, h];
     const k = svgRef.current.getBoundingClientRect().width / result.scene.width;
     const stage = stageRef.current.getBoundingClientRect();
-    const left = Math.min(Math.max(8, (x + result.offset[0]) * k), stage.width - 340);
-    const top = Math.min((y + h + result.offset[1]) * k + 10, stage.height - 52);
+    const left = Math.min(Math.max(8, (x + result.offset[0]) * k), stage.width - 236);
+    const top = Math.min((y + h + result.offset[1]) * k + 10, stage.height - 44);
     setPending({ to, left: Math.max(8, left), top: Math.max(8, top) });
     setText("");
   };
@@ -370,7 +370,9 @@ export function Bench() {
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => e.key === "Escape" && setPending(undefined)}
                 />
-                <button type="submit">Place</button>
+                <button type="submit" aria-label="Place note" title="Place note">
+                  <Icon name="enter" />
+                </button>
               </form>
             )}
           </div>
