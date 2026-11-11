@@ -1,9 +1,10 @@
 import { existsSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
 import { type Img, loadImage } from "./image";
-import { annotate, DEFAULT_COLOR, esc, FONT_PATH, fontSize, SURFACE } from "./render";
-import { type Layer, renderScene, type Scene } from "./raster";
-import type { CompareSpec, ImageSpec, Style } from "./types";
+import { FONT_PATH } from "./font";
+import { annotate, DEFAULT_COLOR, esc, fontSize, SURFACE } from "./render";
+import { renderScene } from "./raster";
+import type { CompareSpec, ImageSpec, Layer, Scene, Style } from "./types";
 
 // Grid rulers read best in a monospace font; load that one file instead of every system font.
 const MONO = ["/System/Library/Fonts/Menlo.ttc", "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf"].filter((f) =>

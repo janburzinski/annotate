@@ -1,0 +1,889 @@
+/* Design system. Light and dark follow the system through light-dark(). One sans, one mono, a 4 px
+   grid, hairlines, and one accent: annotate's ink. Raised surfaces share one recipe: a 1 px inner
+   highlight on the top edge, a hairline ring, and a soft drop shadow. */
+@font-face {
+  font-family: "Poah";
+  src: url("/poah.ttf") format("truetype");
+  font-display: swap;
+}
+
+:root {
+  color-scheme: light dark;
+
+  --font-sans: var(--geist), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-hand: "Poah", var(--font-sans);
+
+  --bg: light-dark(oklch(0.985 0.002 265), oklch(0.145 0.004 265));
+  --bg-2: light-dark(oklch(0.965 0.003 265), oklch(0.175 0.005 265));
+  --raised: light-dark(#fff, oklch(0.205 0.006 265));
+  --fg: light-dark(oklch(0.21 0.01 265), oklch(0.96 0.003 265));
+  --fg-2: light-dark(oklch(0.45 0.012 265), oklch(0.75 0.008 265));
+  --fg-3: light-dark(oklch(0.54 0.01 265), oklch(0.62 0.01 265));
+  --line: light-dark(oklch(0.21 0.02 265 / 0.07), oklch(1 0 0 / 0.07));
+  --line-2: light-dark(oklch(0.21 0.02 265 / 0.11), oklch(1 0 0 / 0.1));
+  --hover: light-dark(oklch(0.21 0.02 265 / 0.045), oklch(1 0 0 / 0.06));
+  --ink: light-dark(#1d3fd6, #8aa4ff);
+  --ink-soft: light-dark(rgb(29 63 214 / 0.09), rgb(138 164 255 / 0.15));
+  --ok: light-dark(#15803d, #4ade80);
+  --warn: light-dark(#b45309, #fbbf24);
+  /* Behind screenshots: the engine's own neutral surface, light in both modes, like the CLI's output. */
+  --stage: #fff;
+  --outline: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
+
+  --hi: light-dark(#fff, oklch(1 0 0 / 0.07));
+  --drop: light-dark(oklch(0.21 0.03 265 / 0.06), oklch(0 0 0 / 0.45));
+  --drop-2: light-dark(oklch(0.21 0.03 265 / 0.1), oklch(0 0 0 / 0.6));
+  --elev-1: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 2px var(--drop);
+  --elev-2: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 2px var(--drop), 0 16px 40px -12px var(--drop-2);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+  --space-9: 96px;
+  --radius-1: 6px;
+  --radius-2: 10px;
+  --radius-3: 18px;
+  --content: 1120px;
+  --measure: 34rem;
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-swap: cubic-bezier(0.2, 0, 0, 1);
+}
+
+* {
+  box-sizing: border-box;
+}
+html.wait body {
+  visibility: hidden;
+}
+html {
+  background: var(--bg);
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  text-size-adjust: 100%;
+}
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 15px/24px var(--font-sans);
+}
+code,
+pre {
+  font-family: var(--font-mono);
+}
+::selection {
+  background: var(--ink);
+  color: #fff;
+}
+a {
+  color: inherit;
+  text-decoration: underline var(--line-2);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+a:hover {
+  text-decoration-color: var(--fg);
+}
+:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+svg.icon {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Frame */
+.wrap {
+  width: 100%;
+  max-width: calc(var(--content) + 2 * var(--space-6));
+  margin-inline: auto;
+  padding-inline: var(--space-6);
+}
+/* Type */
+h1 {
+  margin: 0;
+  font: 600 52px/1.06 var(--font-sans);
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+h1 .hand {
+  display: inline-block;
+  font: 400 1.12em/1 var(--font-hand);
+  color: var(--ink);
+  letter-spacing: 0;
+}
+h2 {
+  margin: 0;
+  font: 600 28px/1.15 var(--font-sans);
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+.lead {
+  max-width: var(--measure);
+  margin: 20px 0 0;
+  font-size: 17px;
+  line-height: 28px;
+  color: var(--fg-2);
+  text-wrap: balance;
+}
+/* Buttons */
+.icon-btn {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-1);
+  background: transparent;
+  color: var(--fg-2);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.icon-btn:hover {
+  background: var(--hover);
+  color: var(--fg);
+}
+.icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+.icon-btn[aria-pressed="true"] {
+  background: var(--ink-soft);
+  color: var(--ink);
+}
+/* Two states share one grid cell, so nothing shifts when they swap. Icons scale and unblur in. */
+.swap {
+  display: inline-grid;
+  justify-items: start;
+  align-items: center;
+}
+.swap > * {
+  grid-area: 1 / 1;
+  transition: opacity 0.2s var(--ease-swap), transform 0.2s var(--ease-swap), filter 0.2s var(--ease-swap);
+}
+.swap > :last-child,
+[data-done] .swap > :first-child {
+  opacity: 0;
+  transform: translateY(3px);
+}
+.swap > .icon:last-child,
+[data-done] .swap > .icon:first-child {
+  transform: scale(0.25);
+  filter: blur(4px);
+}
+[data-done] .swap > :last-child {
+  opacity: 1;
+  transform: none;
+  filter: none;
+}
+[data-done] .swap > .icon:last-child {
+  color: var(--ok);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-6);
+}
+
+/* Hero */
+.hero {
+  padding-block: var(--space-9) var(--space-6);
+  text-align: center;
+}
+.hero .lead {
+  margin-inline: auto;
+}
+.hero .cta {
+  justify-content: center;
+}
+.demo {
+  margin-top: 56px;
+  text-align: left;
+}
+/* Bench: the live demo */
+.bench {
+  position: relative;
+  padding: 6px;
+  border-radius: var(--radius-3);
+  background: var(--raised);
+  box-shadow: var(--elev-2);
+}
+.bench-body {
+  display: grid;
+}
+.stage-wrap {
+  position: relative;
+}
+.stage {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  background: var(--stage);
+  box-shadow: 0 0 0 1px light-dark(transparent, var(--line));
+  touch-action: none;
+  user-select: none;
+}
+.stage svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  cursor: crosshair;
+}
+.shot {
+  transition: opacity 0.2s ease-out;
+}
+html.shot-wait .scene .shot {
+  opacity: 0;
+}
+/* The demo's own marks (hint, selection, highlights) use the engine's ink for the surface below. Before the
+   page knows the theme it holds a scene per theme, and only the one for the system theme shows. */
+.stage {
+  --demo-ink: #1d3fd6;
+}
+.scene[data-scheme="dark"] {
+  --demo-ink: #7b9bff;
+  display: none;
+}
+@media (prefers-color-scheme: dark) {
+  .scene[data-scheme="light"] {
+    display: none;
+  }
+  .scene[data-scheme="dark"] {
+    display: block;
+  }
+}
+.sel {
+  fill: color-mix(in srgb, var(--demo-ink) 8%, transparent);
+  stroke: var(--demo-ink);
+}
+.arrow-preview {
+  fill: none;
+  stroke: var(--demo-ink);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
+.arrow-preview circle {
+  fill: var(--demo-ink);
+  stroke: none;
+}
+.stage-loading {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 2614 / 1980;
+  color: #71717a;
+  font: 13px var(--font-mono);
+}
+.drop-active::after {
+  content: "drop a screenshot";
+  position: absolute;
+  inset: var(--space-3);
+  display: grid;
+  place-items: center;
+  border: 2px dashed #1d3fd6;
+  border-radius: var(--radius-2);
+  background: rgb(29 63 214 / 0.06);
+  color: #1d3fd6;
+  font: 32px/1 var(--font-hand);
+}
+.note-input {
+  position: absolute;
+  transform-origin: top left;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.1);
+  animation: pop 0.16s var(--ease);
+}
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(-2px) scale(0.98);
+  }
+}
+.note-input input {
+  width: 190px;
+  height: 26px;
+  padding: 0 6px;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #1d3fd6;
+  font: 19px/1 var(--font-hand);
+}
+.note-input input::placeholder {
+  color: #a1a1aa;
+}
+.note-input button {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(0 0 0 / 0.1), 0 1px 0 rgb(0 0 0 / 0.08);
+  color: #8b8b93;
+  cursor: pointer;
+  transition: color 0.15s var(--ease), background 0.15s var(--ease);
+}
+.note-input button .icon {
+  width: 13px;
+  height: 13px;
+}
+.note-input button:hover,
+.note-input input:not(:placeholder-shown) + button {
+  color: #1d3fd6;
+}
+.note-input button:hover {
+  background: #f4f4f5;
+}
+
+/* The note menu: a light toolbar under a clicked note, like the note input. */
+.note-menu {
+  position: absolute;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 3px;
+  border-radius: 9px;
+  background: #fff;
+  box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgb(0 0 0 / 0.08), 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px -2px rgb(0 0 0 / 0.1);
+  transform-origin: top left;
+  animation: pop 0.16s var(--ease);
+}
+.note-menu .icon-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  color: #52525b;
+}
+.note-menu .icon {
+  width: 14px;
+  height: 14px;
+}
+.note-menu .icon-btn:hover {
+  background: rgb(0 0 0 / 0.05);
+  color: #18181b;
+}
+.note-menu .icon-btn[aria-pressed="true"] {
+  background: rgb(29 63 214 / 0.09);
+  color: #1d3fd6;
+}
+.note-menu .icon-btn[data-danger]:hover {
+  background: rgb(220 38 38 / 0.08);
+  color: #dc2626;
+}
+/* Below the buttons, so the label never covers the note it is about. */
+.note-menu .tool[data-label]:hover::after {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+.note-menu .sep {
+  height: 14px;
+  margin: 0 2px;
+  background: rgb(0 0 0 / 0.1);
+}
+.note-hover,
+.note-sel {
+  fill: color-mix(in srgb, var(--demo-ink) 7%, transparent);
+  stroke: none;
+  pointer-events: none;
+}
+.note-sel {
+  fill: color-mix(in srgb, var(--demo-ink) 9%, transparent);
+  stroke: var(--demo-ink);
+}
+
+/* Dock tools: a label with its shortcut on hover. */
+.tool {
+  position: relative;
+}
+@media (hover: hover) {
+.tool[data-label]:hover::after {
+  content: attr(data-label);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  translate: -50% 0;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--fg);
+  color: var(--bg);
+  font: 500 12px/1 var(--font-sans);
+  white-space: nowrap;
+  pointer-events: none;
+}
+}
+.sep {
+  width: 1px;
+  height: 18px;
+  margin: 0 var(--space-1);
+  background: var(--line-2);
+}
+
+/* The dock floats half over the stage's bottom edge. */
+.dock {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  z-index: 4;
+  translate: -50% 50%;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 5px;
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: var(--elev-2);
+}
+.dock .icon-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+}
+.dock-next:empty {
+  display: none;
+}
+.dock-next {
+  min-width: 170px;
+  padding: 0 10px 0 6px;
+  font-size: 13px;
+  color: var(--fg-2);
+  white-space: nowrap;
+}
+
+/* The idle invitation: a dashed box draws itself over a button while a cursor drags it open. */
+.ghost {
+  pointer-events: none;
+}
+.ghost-box {
+  fill: color-mix(in srgb, var(--demo-ink) 7%, transparent);
+  stroke: var(--demo-ink);
+  transform-box: fill-box;
+  transform-origin: 0 0;
+  animation: ghost-box 2.8s var(--ease) infinite;
+}
+.ghost-cursor path {
+  fill: #18181b;
+  stroke: #fff;
+  stroke-width: 2.5;
+}
+.ghost-cursor {
+  animation: ghost-cursor 2.8s var(--ease) infinite;
+}
+.ghost-label {
+  fill: var(--demo-ink);
+  font-family: var(--font-hand);
+  animation: ghost-fade 2.8s ease infinite;
+}
+@keyframes ghost-box {
+  0%,
+  8% {
+    transform: scale(0.02);
+    opacity: 1;
+  }
+  55%,
+  82% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 0;
+  }
+}
+@keyframes ghost-cursor {
+  0%,
+  8% {
+    transform: translate(0, 0);
+    opacity: 1;
+  }
+  55%,
+  82% {
+    transform: translate(var(--tw, 376px), var(--th, 90px));
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tw, 376px), var(--th, 90px));
+    opacity: 0;
+  }
+}
+@keyframes ghost-fade {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Spec and status */
+.spec {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding-top: 28px;
+}
+.spec-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-2) 4px 0 10px;
+  font: 12px var(--font-mono);
+  color: var(--fg-3);
+}
+.spec pre {
+  flex: 1;
+  margin: 0;
+  padding: var(--space-1) 10px var(--space-4);
+  overflow: auto;
+  max-height: 280px;
+  font: 12.5px/20px var(--font-mono);
+  color: var(--fg-2);
+}
+.spec .k {
+  color: var(--fg);
+}
+.spec .s {
+  color: var(--ink);
+}
+.status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  padding: 10px;
+  border-radius: 12px;
+  background: var(--bg-2);
+  font: 12px/16px var(--font-mono);
+  color: var(--fg-3);
+}
+.status .ok {
+  color: var(--ok);
+}
+.status .warn {
+  color: var(--warn);
+}
+
+/* Sections */
+.section {
+  padding-top: 88px;
+}
+.section-lead {
+  margin: var(--space-2) 0 var(--space-5);
+  color: var(--fg-2);
+}
+/* Each figure grows by its image's aspect ratio (--r), so images in a row share one height. */
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+.gallery figure {
+  flex: var(--r) 1 0;
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  border-radius: 16px;
+  background: var(--raised);
+  box-shadow: var(--elev-1);
+}
+.gallery figure.wide {
+  flex-basis: 100%;
+}
+.gallery img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  background: var(--stage);
+  outline: 1px solid var(--outline);
+  outline-offset: -1px;
+}
+.zoom {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 10px;
+  background: none;
+  cursor: zoom-in;
+}
+.gallery figcaption {
+  padding: 10px 8px 4px;
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--fg-3);
+}
+
+/* Lightbox: the image grows out of its thumbnail (animated from gallery.tsx) over a dimmed page. */
+html:has(.lightbox[open]) {
+  overflow: hidden;
+}
+.lightbox {
+  width: 100vw;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: zoom-out;
+}
+.lightbox[open] {
+  display: grid;
+  place-items: center;
+}
+.lightbox::backdrop {
+  background: oklch(0.145 0.004 265 / 0.72);
+  backdrop-filter: blur(6px);
+  animation: fade 0.25s ease-out;
+  transition: opacity 0.2s ease-out;
+}
+.lightbox[data-closing]::backdrop {
+  opacity: 0;
+}
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+.lightbox img {
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(100vw - 32px, 1800px);
+  max-height: calc(100dvh - 48px);
+  border-radius: 12px;
+  background: var(--stage);
+  outline: 1px solid oklch(1 0 0 / 0.08);
+  outline-offset: -1px;
+  transform-origin: top left;
+}
+.lightbox-frame {
+  display: block;
+  filter: drop-shadow(0 24px 32px rgb(0 0 0 / 0.45));
+}
+.lightbox-close {
+  position: fixed;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.12);
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, opacity 0.2s ease-out;
+}
+.lightbox-close:hover {
+  background: oklch(1 0 0 / 0.2);
+}
+.lightbox[data-closing] .lightbox-close {
+  opacity: 0;
+}
+.footer {
+  margin-top: var(--space-9);
+  padding-block: var(--space-6) var(--space-8);
+  box-shadow: inset 0 1px var(--line);
+  font-size: 13px;
+  color: var(--fg-3);
+}
+.footer p {
+  margin: 0 0 var(--space-2);
+}
+
+/* Touch: bigger targets in the popovers on the screenshot. */
+@media (pointer: coarse) {
+  .note-menu .icon-btn {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+  }
+  .note-menu {
+    border-radius: 11px;
+  }
+  .note-menu .icon {
+    width: 16px;
+    height: 16px;
+  }
+  .note-input button {
+    width: 34px;
+    height: 30px;
+    border-radius: 7px;
+  }
+}
+
+/* Phones: the demo uses the full width, spec lines wrap, and GitHub becomes an icon beside the pill. */
+@media (max-width: 480px) {
+  .demo .bench {
+    margin-inline: -12px;
+    padding: 4px;
+    border-radius: 16px;
+  }
+  .stage {
+    border-radius: 12px;
+  }
+  .status {
+    border-radius: 12px;
+  }
+  .spec pre {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 12px;
+  }
+  .pill-link {
+    width: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+  .pill-link .icon {
+    width: 18px;
+    height: 18px;
+  }
+  .pill-link-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .cta {
+    flex-wrap: nowrap;
+    gap: var(--space-2);
+  }
+}
+
+@media (max-width: 900px) {
+  .gallery figure {
+    flex-basis: 100%;
+  }
+  .dock-next {
+    display: none;
+  }
+  h1 {
+    font-size: 36px;
+  }
+  .hero {
+    padding-block: var(--space-7) 0;
+  }
+  .section {
+    padding-top: var(--space-8);
+  }
+  .wrap {
+    padding-inline: var(--space-4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* Copy prompt: a fully rounded raised pill with the agents it is for. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 18px 0 8px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--raised);
+  box-shadow: var(--elev-1);
+  color: var(--fg);
+  font: 500 15px/1 var(--font-sans);
+  white-space: nowrap;
+  cursor: pointer;
+  --ring: var(--raised);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
+}
+.pill:hover {
+  box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 2px 6px var(--drop);
+}
+.pill .icon {
+  width: 15px;
+  height: 15px;
+  color: var(--fg-3);
+}
+.chips {
+  display: inline-flex;
+}
+.chip {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  margin-left: -7px;
+  border-radius: 999px;
+  background: #fff;
+  color: #18181b;
+  box-shadow: 0 0 0 2px var(--ring), inset 0 0 0 1px oklch(0 0 0 / 0.08);
+}
+.chip:first-child {
+  margin-left: 0;
+}
+.logo,
+.logo svg {
+  display: block;
+  width: 15px;
+  height: 15px;
+}
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  color: var(--fg-2);
+  font: 500 15px/1 var(--font-sans);
+  text-decoration: none;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.pill-link:hover {
+  background: var(--hover);
+  color: var(--fg);
+}

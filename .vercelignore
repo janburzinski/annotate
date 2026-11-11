@@ -1,0 +1,6 @@
+# The site builds from site/ but needs cli/src, cli/fonts and docs/ from the repo root.
+**/node_modules
+site/.next
+cli/test
+skills
+.env*
