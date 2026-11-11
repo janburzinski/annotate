@@ -640,7 +640,7 @@ button.tile {
   --iw: 76%;
 }
 @media (hover: hover) {
-  .tile:hover .tile-img {
+  .bento:not([data-quiet]) .tile:hover .tile-img {
     transform: translateY(-6px);
   }
 }
@@ -717,8 +717,13 @@ html:has(.lightbox[open]) {
   max-height: calc(100dvh - 48px);
   border-radius: 12px;
   background: var(--stage);
-  box-shadow: 0 0 0 1px oklch(1 0 0 / 0.08), 0 24px 64px -16px oklch(0 0 0 / 0.6);
+  outline: 1px solid oklch(1 0 0 / 0.08);
+  outline-offset: -1px;
   transform-origin: top left;
+}
+.lightbox-frame {
+  display: block;
+  filter: drop-shadow(0 24px 32px rgb(0 0 0 / 0.45));
 }
 .lightbox-close {
   position: fixed;

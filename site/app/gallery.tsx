@@ -6,8 +6,10 @@ import { Icon } from "./icons";
 export type Example = { src: string; alt: string; title: string; body: string; w: number; h: number; area: string };
 
 const EASE = "cubic-bezier(0.23, 1, 0.32, 1)";
-// Past the image's edges, so its shadow shows once it is open.
-const OPEN_CLIP = "inset(-64px round 12px)";
+const OPEN_CLIP = "inset(0px round 12px)";
+// The shadow is a drop-shadow on the frame around the image: it follows the clipped, moving image and
+// fades with it, instead of being cut off by the clip or left behind on the thumbnail.
+const SHADOW = ["drop-shadow(0 24px 32px rgb(0 0 0 / 0))", "drop-shadow(0 24px 32px rgb(0 0 0 / 0.45))"];
 
 /**
  * Where the large image must start (or end) to sit exactly on its thumbnail: the same box, cut to the
@@ -36,6 +38,8 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
   const [closing, setClosing] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
   const big = useRef<HTMLImageElement>(null);
+  const frame = useRef<HTMLSpanElement>(null);
+  const grid = useRef<HTMLDivElement>(null);
   const thumbs = useRef<(HTMLImageElement | null)[]>([]);
   // Opened with the keyboard: keep the focus ring on the tile after closing, as keyboard users expect.
   const keyboard = useRef(false);
@@ -54,7 +58,9 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
         if (!live || !dialog.current) return;
         dialog.current.showModal();
         thumb.style.visibility = "hidden";
-        if (!still()) img.animate([onThumb(thumb, img), { transform: "none", clipPath: OPEN_CLIP }], { duration: 340, easing: EASE });
+        if (still()) return;
+        img.animate([onThumb(thumb, img), { transform: "none", clipPath: OPEN_CLIP }], { duration: 340, easing: EASE });
+        frame.current?.animate([{ filter: SHADOW[0] }, { filter: SHADOW[1] }], { duration: 340, easing: EASE });
       });
     return () => {
       live = false;
@@ -69,6 +75,12 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
       dialog.current?.close();
       // The dialog hands focus back to the tile; after a click, without the ring.
       if (!keyboard.current && document.activeElement instanceof HTMLElement) document.activeElement.blur();
+      // The pointer may rest on the tile it came back to: no hover lift until it moves again.
+      const g = grid.current;
+      if (g) {
+        g.dataset.quiet = "";
+        document.addEventListener("pointermove", () => delete g.dataset.quiet, { once: true });
+      }
       setOpen(undefined);
       setClosing(false);
     };
@@ -79,13 +91,14 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
       easing: EASE,
       fill: "forwards",
     });
+    frame.current?.animate([{ filter: SHADOW[1] }, { filter: SHADOW[0] }], { duration: 240, easing: EASE, fill: "forwards" });
     anim.onfinish = done;
   };
 
   const item = open === undefined ? undefined : items[open];
   return (
     <>
-      <div className="bento">
+      <div className="bento" ref={grid}>
         {items.map((e, i) => (
           <button
             key={e.src}
@@ -134,8 +147,10 @@ export function Gallery({ items, children }: { items: Example[]; children?: Reac
       >
         {item && (
           <>
-            {/* biome-ignore lint/performance/noImgElement: the same static PNG, at full size */}
-            <img ref={big} src={item.src} alt={item.alt} width={item.w} height={item.h} />
+            <span className="lightbox-frame" ref={frame}>
+              {/* biome-ignore lint/performance/noImgElement: the same static PNG, at full size */}
+              <img ref={big} src={item.src} alt={item.alt} width={item.w} height={item.h} />
+            </span>
             <button
               type="button"
               className="lightbox-close"
