@@ -131,7 +131,6 @@ export function Bench() {
   const [pending, setPending] = useState<Pending>();
   const [text, setText] = useState("");
   const [touched, setTouched] = useState(false);
-  const [added, setAdded] = useState(false);
   const [dropping, setDropping] = useState(false);
   const [error, setError] = useState<string>();
   const [selected, setSelected] = useState<number>();
@@ -305,7 +304,6 @@ export function Bench() {
     setNotes((n) => [...n, note]);
     setPending(undefined);
     setTouched(true);
-    setAdded(true);
   };
 
   const openShot = async (file: File) => {
@@ -407,9 +405,7 @@ export function Bench() {
         ? "Type a note, press Enter"
         : drag
           ? "Let go to write a note"
-          : added
-            ? "Placed. Click a note to change it"
-            : "Drag over anything";
+          : "Drag over anything";
   const picked = selected === undefined ? undefined : notes[selected];
 
   return (
