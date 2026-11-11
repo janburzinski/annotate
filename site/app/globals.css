@@ -4,7 +4,7 @@
 @font-face {
   font-family: "Poah";
   src: url("/poah.ttf") format("truetype");
-  font-display: block;
+  font-display: swap;
 }
 
 :root {
@@ -57,6 +57,9 @@
 
 * {
   box-sizing: border-box;
+}
+html.wait body {
+  visibility: hidden;
 }
 html {
   background: var(--bg);
@@ -212,24 +215,6 @@ h2 {
 .hero {
   padding-block: var(--space-9) var(--space-6);
 }
-.hero > * {
-  animation: rise 0.5s var(--ease) both;
-}
-.hero > :nth-child(2) {
-  animation-delay: 0.06s;
-}
-.hero > :nth-child(3) {
-  animation-delay: 0.12s;
-}
-.hero > :nth-child(4) {
-  animation-delay: 0.18s;
-}
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-}
 .demo {
   margin-top: 56px;
 }
@@ -261,6 +246,13 @@ h2 {
   width: 100%;
   height: auto;
   cursor: crosshair;
+}
+.shot {
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+}
+.shot[data-ready] {
+  opacity: 1;
 }
 .stage-loading {
   display: grid;

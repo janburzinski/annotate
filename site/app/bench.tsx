@@ -2,6 +2,7 @@
 
 import { parse } from "opentype.js";
 import { CopyButton } from "./copy";
+import { DEMO, DEMO_NOTES, TRY, type View } from "./demo";
 import { highlight } from "./highlight";
 import { Icon } from "./icons";
 import { type PointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
@@ -23,13 +24,6 @@ const TOOLS: { id: Tool; label: string; key: string }[] = [
   { id: "arrow", label: "Arrow", key: "4" },
 ];
 
-const DEMO = { src: "/demo.png", name: "notra-home.png", dpr: 2 };
-const DEMO_NOTES: Note[] = [
-  { text: "logos stand in for the brand names", to: [789, 320, 112, 112] },
-  { text: "one loud action, the other stays quiet", to: [917, 923, 295, 44] },
-];
-// The "See the Slack app" button: the spot the idle demo invites you to mark.
-const TRY = { x: 1316, y: 902, w: 376, h: 90 };
 // Big uploads are scaled down first: the engine reads every pixel.
 const MAX_SIDE = 3200;
 // Widths of the note input and the note menu (larger on touch screens), to keep them inside the stage.
@@ -67,13 +61,13 @@ async function loadShot(src: string, name: string, dpr?: number): Promise<Shot> 
 }
 
 /** The spec an agent would write for what is on screen, one note per line. */
-function specJson(shot: Shot, notes: Note[]) {
+function specJson(name: string, notes: Note[]) {
   const note = (n: Note) => {
     const parts = [`"text": ${JSON.stringify(n.text)}`, `"to": [${n.to?.join(", ")}]`];
     if (n.mark) parts.push(`"mark": "${n.mark}"`);
     return `    { ${parts.join(", ")} }`;
   };
-  return `{\n  "image": ${JSON.stringify(shot.name)},\n  "notes": [\n${notes.map(note).join(",\n")}\n  ]\n}`;
+  return `{\n  "image": ${JSON.stringify(name)},\n  "notes": [\n${notes.map(note).join(",\n")}\n  ]\n}`;
 }
 
 /** Draw on whatever the engine added since the last render: strokes trace, words fade in. */
@@ -107,7 +101,7 @@ function animateIn(els: Element[]) {
   }
 }
 
-export function Bench() {
+export function Bench({ initial }: { initial: View }) {
   const [shot, setShot] = useState<Shot>();
   const [ready, setReady] = useState(false);
   const [notes, setNotes] = useState<Note[]>(DEMO_NOTES);
@@ -121,10 +115,12 @@ export function Bench() {
   const [selected, setSelected] = useState<number>();
   const [hover, setHover] = useState(-1);
   const [menu, setMenu] = useState<{ left: number; top: number }>();
+  // The sharp screenshot fades in over its blurred placeholder once fully decoded, never drawing in row by row.
+  const [sharp, setSharp] = useState<string>();
   const svgRef = useRef<SVGSVGElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<SVGGElement>(null);
-  const drawn = useRef(0);
+  const drawn = useRef(Number.POSITIVE_INFINITY);
   const fileRef = useRef<HTMLInputElement>(null);
   const clip = useId();
 
@@ -137,16 +133,40 @@ export function Bench() {
       .catch((e) => setError(String(e)));
   }, []);
 
-  const result = useMemo(() => {
+  const result = useMemo((): View | { error: string } | undefined => {
     if (!shot || !ready) return undefined;
     const t0 = performance.now();
     try {
       const a = annotate(shot.pixels, notes, { dpr: shot.pixels.dpr });
-      return { ...a, ms: performance.now() - t0 };
+      return {
+        width: a.scene.width,
+        height: a.scene.height,
+        background: a.scene.background,
+        overlay: a.scene.overlay,
+        fs: a.fs,
+        offset: [a.offset[0], a.offset[1]],
+        radius: a.scene.images[0].radius ?? 0,
+        // The demo keeps the server's placeholder underneath, so taking over changes nothing on screen.
+        image: { src: shot.src, width: shot.pixels.width, height: shot.pixels.height, placeholder: shot.name === DEMO.name ? initial.image.placeholder : undefined },
+        resolved: a.resolved,
+        warnings: a.warnings,
+        ms: performance.now() - t0,
+      };
     } catch (e) {
       return { error: e instanceof Error ? e.message : String(e) };
     }
-  }, [shot, ready, notes]);
+  }, [shot, ready, notes, initial]);
+  const src = result && !("error" in result) ? result.image.src : initial.image.src;
+  useEffect(() => {
+    const img = new Image();
+    img.src = src;
+    img
+      .decode()
+      .catch(() => {})
+      .then(() => setSharp(src));
+  }, [src]);
+  // Until the engine runs here, show the scene laid out on the server.
+  const view: View | undefined = result ? ("error" in result ? undefined : result) : notes === DEMO_NOTES ? initial : undefined;
 
   // Earlier notes keep their element count when one is added, so the new elements are the tail.
   useLayoutEffect(() => {
@@ -161,19 +181,19 @@ export function Bench() {
     (e: PointerEvent) => {
       const svg = svgRef.current;
       const ctm = svg?.getScreenCTM();
-      if (!svg || !ctm || !result || "error" in result) return undefined;
+      if (!svg || !ctm || !view) return undefined;
       const p = new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-      return { x: p.x - result.offset[0], y: p.y - result.offset[1] };
+      return { x: p.x - view.offset[0], y: p.y - view.offset[1] };
     },
-    [result],
+    [view],
   );
 
   /** The topmost note whose label is under an image-pixel point, or -1. */
   const hitNote = (p: { x: number; y: number }) => {
-    if (!result || "error" in result) return -1;
-    const pad = result.fs * 0.3;
-    for (let i = result.resolved.length - 1; i >= 0; i--) {
-      const [x, y, w, h] = result.resolved[i].label ?? [];
+    if (!view) return -1;
+    const pad = view.fs * 0.3;
+    for (let i = view.resolved.length - 1; i >= 0; i--) {
+      const [x, y, w, h] = view.resolved[i].label ?? [];
       if (p.x > x - pad && p.x < x + w + pad && p.y > y - pad && p.y < y + h + pad) return i;
     }
     return -1;
@@ -181,11 +201,11 @@ export function Bench() {
 
   /** Stage pixels just under a box given in image pixels, kept inside the stage. */
   const under = (box: number[], width: number) => {
-    if (!result || "error" in result || !svgRef.current || !stageRef.current) return { left: 8, top: 8 };
-    const k = svgRef.current.getBoundingClientRect().width / result.scene.width;
+    if (!view || !svgRef.current || !stageRef.current) return { left: 8, top: 8 };
+    const k = svgRef.current.getBoundingClientRect().width / view.width;
     const stage = stageRef.current.getBoundingClientRect();
-    const left = Math.min((box[0] + result.offset[0]) * k, stage.width - width - 8);
-    const top = Math.min((box[1] + (box[3] ?? 0) + result.offset[1]) * k + 10, stage.height - 44);
+    const left = Math.min((box[0] + view.offset[0]) * k, stage.width - width - 8);
+    const top = Math.min((box[1] + (box[3] ?? 0) + view.offset[1]) * k + 10, stage.height - 44);
     return { left: Math.max(8, left), top: Math.max(8, top) };
   };
 
@@ -217,7 +237,7 @@ export function Bench() {
     setDrag({ ...drag, x1: Math.min(W, Math.max(0, p.x)), y1: Math.min(H, Math.max(0, p.y)) });
   };
   const onUp = () => {
-    if (!drag || !result || "error" in result) return;
+    if (!drag || !view) return;
     const x = Math.round(Math.min(drag.x0, drag.x1));
     const y = Math.round(Math.min(drag.y0, drag.y1));
     const w = Math.round(Math.abs(drag.x1 - drag.x0));
@@ -236,9 +256,9 @@ export function Bench() {
 
   // The note menu sits under the selected label, and follows it when the layout changes.
   useLayoutEffect(() => {
-    const label = selected === undefined || !result || "error" in result ? undefined : result.resolved[selected]?.label;
+    const label = selected === undefined || !view ? undefined : view.resolved[selected]?.label;
     setMenu(label ? under(label, MENU_W) : undefined);
-  }, [selected, result]);
+  }, [selected, view]);
 
   const close = () => {
     setPending(undefined);
@@ -256,7 +276,7 @@ export function Bench() {
   };
   const setMark = (i: number, t: Tool) => quietly((n) => n.map((x, k) => (k === i ? { ...x, mark: t === "arrow" ? undefined : t } : x)));
   const edit = (i: number) => {
-    const label = result && !("error" in result) ? result.resolved[i]?.label : undefined;
+    const label = view?.resolved[i]?.label;
     setSelected(undefined);
     setPending({ to: notes[i].to ?? [], index: i, ...under(label ?? [8, 8, 0, 0], INPUT_W) });
     setText(notes[i].text);
@@ -322,10 +342,8 @@ export function Bench() {
     setNotes(DEMO_NOTES);
   };
 
-  const spec = shot ? specJson(shot, notes) : "";
-  const ok = result && !("error" in result);
-  const layer = ok ? result.scene.images[0] : undefined;
-  const sel = drag && ok ? { x: Math.min(drag.x0, drag.x1) + result.offset[0], y: Math.min(drag.y0, drag.y1) + result.offset[1], w: Math.abs(drag.x1 - drag.x0), h: Math.abs(drag.y1 - drag.y0) } : undefined;
+  const spec = specJson(shot?.name ?? DEMO.name, notes);
+  const sel = drag && view ? { x: Math.min(drag.x0, drag.x1) + view.offset[0], y: Math.min(drag.y0, drag.y1) + view.offset[1], w: Math.abs(drag.x1 - drag.x0), h: Math.abs(drag.y1 - drag.y0) } : undefined;
 
   // Escape closes the note input or menu from anywhere. Otherwise, never while typing: 1-4 pick a
   // tool, Z undoes, R resets, O opens a screenshot, Delete removes the selected note.
@@ -336,7 +354,7 @@ export function Bench() {
         return;
       }
       const t = e.target as HTMLElement;
-      if (t.closest("input, textarea, [contenteditable]") || e.altKey || pending) return;
+      if (!ready || t.closest("input, textarea, [contenteditable]") || e.altKey || pending) return;
       if (selected !== undefined && (e.key === "Delete" || e.key === "Backspace")) {
         e.preventDefault();
         remove(selected);
@@ -373,7 +391,7 @@ export function Bench() {
         setSelected(undefined);
         setNotes((n) => n.slice(0, -1));
       },
-      off: !notes.length,
+      off: !ready || !notes.length,
     },
     { id: "reset", label: "Reset", key: "R", icon: "reset" as const, run: reset, off: false },
     { id: "open", label: "Use your screenshot", key: "O", icon: "image" as const, run: () => fileRef.current?.click(), off: false },
@@ -413,10 +431,10 @@ export function Bench() {
               if (f) openShot(f);
             }}
           >
-            {ok && shot && layer ? (
+            {view ? (
               <svg
                 ref={svgRef}
-                viewBox={`0 0 ${result.scene.width} ${result.scene.height}`}
+                viewBox={`0 0 ${view.width} ${view.height}`}
                 role="img"
                 aria-label={`Screenshot with ${notes.length} handwritten notes`}
                 style={hover >= 0 && !drag ? { cursor: "pointer" } : undefined}
@@ -425,49 +443,62 @@ export function Bench() {
                 onPointerUp={onUp}
                 onPointerCancel={() => setDrag(undefined)}
               >
-                {result.scene.background && <rect width={result.scene.width} height={result.scene.height} fill={result.scene.background} />}
+                {view.background && <rect width={view.width} height={view.height} fill={view.background} />}
                 <defs>
                   <clipPath id={clip}>
-                    <rect x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} rx={layer.radius} />
+                    <rect x={view.offset[0]} y={view.offset[1]} width={view.image.width} height={view.image.height} rx={view.radius} />
                   </clipPath>
                 </defs>
-                <image href={shot.src} x={layer.x} y={layer.y} width={shot.pixels.width} height={shot.pixels.height} clipPath={`url(#${clip})`} />
+                <g clipPath={`url(#${clip})`}>
+                  {view.image.placeholder && (
+                    <image href={view.image.placeholder} x={view.offset[0]} y={view.offset[1]} width={view.image.width} height={view.image.height} preserveAspectRatio="none" />
+                  )}
+                  <image
+                    className="shot"
+                    data-ready={!view.image.placeholder || sharp === view.image.src || undefined}
+                    href={view.image.src}
+                    x={view.offset[0]}
+                    y={view.offset[1]}
+                    width={view.image.width}
+                    height={view.image.height}
+                  />
+                </g>
                 {[...new Set([hover, selected ?? -1])].map((i) => {
-                  const label = result.resolved[i]?.label;
+                  const label = view.resolved[i]?.label;
                   if (!label) return null;
-                  const p = result.fs * 0.25;
+                  const p = view.fs * 0.25;
                   return (
                     <rect
                       key={i}
                       className={i === selected ? "note-sel" : "note-hover"}
-                      x={label[0] + result.offset[0] - p}
-                      y={label[1] + result.offset[1] - p}
+                      x={label[0] + view.offset[0] - p}
+                      y={label[1] + view.offset[1] - p}
                       width={label[2] + p * 2}
                       height={label[3] + p * 2}
-                      rx={result.fs / 4}
-                      strokeWidth={result.fs / 14}
-                      strokeDasharray={`${result.fs / 3} ${result.fs / 4}`}
+                      rx={view.fs / 4}
+                      strokeWidth={view.fs / 14}
+                      strokeDasharray={`${view.fs / 3} ${view.fs / 4}`}
                     />
                   );
                 })}
-                <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: result.scene.overlay }} />
-                {!touched && !drag && !pending && shot.name === DEMO.name && (
-                  <g className="ghost" transform={`translate(${TRY.x + layer.x} ${TRY.y + layer.y})`} aria-hidden="true">
-                    <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={result.fs / 4} strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} />
+                <g ref={overlayRef} dangerouslySetInnerHTML={{ __html: view.overlay }} />
+                {!touched && !drag && !pending && (shot?.name ?? DEMO.name) === DEMO.name && (
+                  <g className="ghost" transform={`translate(${TRY.x + view.offset[0]} ${TRY.y + view.offset[1]})`} aria-hidden="true">
+                    <rect className="ghost-box" width={TRY.w} height={TRY.h} rx={view.fs / 4} strokeWidth={view.fs / 11} strokeDasharray={`${view.fs / 3} ${view.fs / 4}`} />
                     <g className="ghost-cursor">
-                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${result.fs / 42})`} />
+                      <path d="M0 0v34l9-9 6 14 6-3-6-13h13z" transform={`scale(${view.fs / 42})`} />
                     </g>
-                    <text className="ghost-label" x={TRY.w + result.fs * 0.8} y={TRY.h / 2 + result.fs * 0.35} fontSize={result.fs * 1.15}>
+                    <text className="ghost-label" x={TRY.w + view.fs * 0.8} y={TRY.h / 2 + view.fs * 0.35} fontSize={view.fs * 1.15}>
                       try it: drag over this
                     </text>
                   </g>
                 )}
                 {sel && (
-                  <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={result.fs / 11} strokeDasharray={`${result.fs / 3} ${result.fs / 4}`} rx={result.fs / 5} />
+                  <rect x={sel.x} y={sel.y} width={sel.w} height={sel.h} fill="rgb(29 63 214 / 0.08)" stroke="#1d3fd6" strokeWidth={view.fs / 11} strokeDasharray={`${view.fs / 3} ${view.fs / 4}`} rx={view.fs / 5} />
                 )}
               </svg>
             ) : (
-              <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "loading the engine…")}</div>
+              <div className="stage-loading">{error ?? (result && "error" in result ? result.error : "")}</div>
             )}
             {pending && (
               <form
@@ -551,12 +582,12 @@ export function Bench() {
       <div className="status">
         <span>$ annotate spec.json</span>
         <span>notes: {notes.length}</span>
-        {ok && (
-          <span className={result.warnings.length ? "warn" : "ok"} title={result.warnings.join("\n")}>
-            warnings: {result.warnings.length ? result.warnings.length : "[]"}
+        {view && (
+          <span className={view.warnings.length ? "warn" : "ok"} title={view.warnings.join("\n")}>
+            warnings: {view.warnings.length ? view.warnings.length : "[]"}
           </span>
         )}
-        {ok && <span>layout: {Math.max(1, Math.round(result.ms))} ms</span>}
+        {view && <span>layout: {Math.max(1, Math.round(view.ms))} ms</span>}
       </div>
     </div>
   );

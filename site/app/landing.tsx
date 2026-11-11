@@ -1,4 +1,5 @@
 import { Bench } from "./bench";
+import { demoScene } from "./demo-scene";
 import { CopyPrompt } from "./copy";
 import { type Example, Gallery } from "./gallery";
 import { highlight } from "./highlight";
@@ -69,7 +70,7 @@ export function Landing() {
             </a>
           </div>
           <div className="demo">
-            <Bench />
+            <Bench initial={demoScene()} />
           </div>
         </section>
 
