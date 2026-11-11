@@ -137,7 +137,7 @@ h2 {
   font-size: 17px;
   line-height: 28px;
   color: var(--fg-2);
-  text-wrap: pretty;
+  text-wrap: balance;
 }
 /* Buttons */
 .icon-btn {
@@ -214,9 +214,17 @@ h2 {
 /* Hero */
 .hero {
   padding-block: var(--space-9) var(--space-6);
+  text-align: center;
+}
+.hero .lead {
+  margin-inline: auto;
+}
+.hero .cta {
+  justify-content: center;
 }
 .demo {
   margin-top: 56px;
+  text-align: left;
 }
 /* Bench: the live demo */
 .bench {
