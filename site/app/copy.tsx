@@ -37,17 +37,27 @@ export function CopyPrompt({ text }: { text: string }) {
   return (
     <button
       type="button"
-      className="btn btn-sm"
-      data-variant="primary"
-      title="Copy a prompt that tells your agent to install annotate"
+      className="copy-prompt"
+      data-done={done || undefined}
+      title="Copies a prompt that tells your agent to install annotate"
       onClick={() => {
         navigator.clipboard.writeText(text);
         setDone(true);
         setTimeout(() => setDone(false), 1600);
       }}
     >
-      <Icon name={done ? "check" : "copy"} />
-      {done ? "Copied, paste it to your agent" : "Copy prompt"}
+      <span className="swap" aria-hidden="true">
+        <Icon name="copy" />
+        <Icon name="check" />
+      </span>
+      {/* Both labels share one grid cell, so the button keeps its width when they swap. */}
+      <span className="swap">
+        <span>Copy prompt</span>
+        <span>Copied</span>
+      </span>
+      <span className="sr-only" aria-live="polite">
+        {done ? "Prompt copied" : ""}
+      </span>
     </button>
   );
 }

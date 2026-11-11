@@ -205,11 +205,6 @@ h2 {
   color: var(--bg);
   box-shadow: inset 0 1px 0 light-dark(rgb(255 255 255 / 0.18), rgb(255 255 255 / 0.6)), 0 1px 2px var(--drop);
 }
-.btn-sm {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 13px;
-}
 .btn[data-variant="primary"]:hover {
   background: color-mix(in srgb, var(--fg) 88%, var(--bg));
 }
@@ -250,6 +245,63 @@ kbd {
   box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 0 var(--line-2);
   font: 500 11px/1 var(--font-mono);
   color: var(--fg-2);
+}
+
+/* Copy prompt: a quiet raised button in the top bar. */
+.copy-prompt {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 30px;
+  margin-left: var(--space-2);
+  padding: 0 11px 0 9px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--raised);
+  box-shadow: var(--elev-1);
+  color: var(--fg);
+  font: 500 13px/1 var(--font-sans);
+  cursor: pointer;
+  transition: box-shadow 0.15s var(--ease), transform 0.1s var(--ease);
+}
+.copy-prompt:hover {
+  box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 2px 6px var(--drop);
+}
+.copy-prompt:active {
+  transform: scale(0.97);
+}
+.copy-prompt .icon {
+  width: 14px;
+  height: 14px;
+  color: var(--fg-3);
+}
+.swap {
+  display: inline-grid;
+  justify-items: start;
+}
+.swap > * {
+  grid-area: 1 / 1;
+  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+}
+.swap > :last-child,
+.copy-prompt[data-done] .swap > :first-child {
+  opacity: 0;
+  transform: translateY(3px);
+}
+.copy-prompt[data-done] .swap > :last-child {
+  opacity: 1;
+  transform: none;
+}
+.copy-prompt[data-done] .icon {
+  color: var(--ok);
+}
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 /* Command: the install line. A raised field with an inner highlight and an icon copy button. */
