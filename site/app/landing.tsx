@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { Bench } from "./bench";
 import { Command, CopyPrompt } from "./copy";
 import { Icon } from "./icons";
@@ -52,7 +53,7 @@ export function Landing() {
           <p className="section-lead">Each image comes from a spec in the repo&apos;s docs/examples.</p>
           <div className="gallery">
             {EXAMPLES.map((e) => (
-              <figure key={e.src} className={e.wide ? "wide" : undefined}>
+              <figure key={e.src} className={e.wide ? "wide" : undefined} style={{ "--r": e.w / e.h } as CSSProperties}>
                 {/* biome-ignore lint/performance/noImgElement: static PNGs, shown at their own size */}
                 <img src={e.src} alt={e.alt} width={e.w} height={e.h} loading="lazy" />
                 <figcaption>{e.caption}</figcaption>

@@ -14,30 +14,28 @@
   --font-mono: var(--geist-mono), ui-monospace, "SF Mono", Menlo, monospace;
   --font-hand: "Poah", var(--font-sans);
 
-  --bg: light-dark(#fbfbfa, #09090b);
-  --bg-2: light-dark(#f3f3f1, #111113);
-  --raised: light-dark(#ffffff, #18181b);
-  --fg: light-dark(#18181b, #ededef);
-  --fg-2: light-dark(#52525b, #a1a1aa);
-  --fg-3: light-dark(#8b8b93, #71717a);
-  --line: light-dark(rgb(0 0 0 / 0.07), rgb(255 255 255 / 0.07));
-  --line-2: light-dark(rgb(0 0 0 / 0.11), rgb(255 255 255 / 0.11));
-  --hover: light-dark(rgb(0 0 0 / 0.04), rgb(255 255 255 / 0.06));
-  --press: light-dark(rgb(0 0 0 / 0.07), rgb(255 255 255 / 0.1));
+  --bg: light-dark(oklch(0.985 0.002 265), oklch(0.145 0.004 265));
+  --bg-2: light-dark(oklch(0.965 0.003 265), oklch(0.175 0.005 265));
+  --raised: light-dark(#fff, oklch(0.205 0.006 265));
+  --fg: light-dark(oklch(0.21 0.01 265), oklch(0.96 0.003 265));
+  --fg-2: light-dark(oklch(0.45 0.012 265), oklch(0.75 0.008 265));
+  --fg-3: light-dark(oklch(0.54 0.01 265), oklch(0.62 0.01 265));
+  --line: light-dark(oklch(0.21 0.02 265 / 0.07), oklch(1 0 0 / 0.07));
+  --line-2: light-dark(oklch(0.21 0.02 265 / 0.11), oklch(1 0 0 / 0.1));
+  --hover: light-dark(oklch(0.21 0.02 265 / 0.045), oklch(1 0 0 / 0.06));
   --ink: light-dark(#1d3fd6, #8aa4ff);
-  --ink-soft: light-dark(rgb(29 63 214 / 0.09), rgb(138 164 255 / 0.14));
+  --ink-soft: light-dark(rgb(29 63 214 / 0.09), rgb(138 164 255 / 0.15));
   --ok: light-dark(#15803d, #4ade80);
   --warn: light-dark(#b45309, #fbbf24);
-  --string: light-dark(#a16207, #e5c890);
   /* The stage stays light in both modes: the engine draws on a light surface, like the CLI. */
-  --stage: #f4f4f5;
+  --stage: #fff;
+  --outline: light-dark(oklch(0 0 0 / 0.1), oklch(1 0 0 / 0.1));
 
-  --hi: light-dark(rgb(255 255 255 / 1), rgb(255 255 255 / 0.07));
-  --drop: light-dark(rgb(16 16 24 / 0.06), rgb(0 0 0 / 0.5));
-  --drop-2: light-dark(rgb(16 16 24 / 0.12), rgb(0 0 0 / 0.65));
+  --hi: light-dark(#fff, oklch(1 0 0 / 0.07));
+  --drop: light-dark(oklch(0.21 0.03 265 / 0.06), oklch(0 0 0 / 0.45));
+  --drop-2: light-dark(oklch(0.21 0.03 265 / 0.1), oklch(0 0 0 / 0.6));
   --elev-1: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 2px var(--drop);
-  --elev-2: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 2px 4px var(--drop), 0 12px 32px -8px var(--drop-2);
-  --sunken: inset 0 1px 2px var(--drop), inset 0 0 0 1px var(--line);
+  --elev-2: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 2px var(--drop), 0 16px 40px -12px var(--drop-2);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -50,10 +48,11 @@
   --space-9: 96px;
   --radius-1: 6px;
   --radius-2: 10px;
-  --radius-3: 14px;
+  --radius-3: 18px;
   --content: 1120px;
   --measure: 34rem;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-swap: cubic-bezier(0.2, 0, 0, 1);
 }
 
 * {
@@ -72,8 +71,7 @@ body {
   font: 400 15px/24px var(--font-sans);
 }
 code,
-pre,
-kbd {
+pre {
   font-family: var(--font-mono);
 }
 ::selection {
@@ -163,51 +161,20 @@ h1 .hand {
   letter-spacing: 0;
 }
 h2 {
-  margin: var(--space-2) 0 0;
+  margin: 0;
   font: 600 28px/1.15 var(--font-sans);
   letter-spacing: -0.025em;
   text-wrap: balance;
 }
 .lead {
   max-width: var(--measure);
-  margin: var(--space-4) 0 0;
+  margin: 20px 0 0;
   font-size: 17px;
   line-height: 28px;
   color: var(--fg-2);
   text-wrap: pretty;
 }
 /* Buttons */
-.btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: var(--radius-2);
-  background: var(--raised);
-  box-shadow: var(--elev-1);
-  color: var(--fg);
-  font: 500 14px/1 var(--font-sans);
-  text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.1s var(--ease), background 0.15s var(--ease);
-}
-.btn:hover {
-  background: color-mix(in srgb, var(--raised) 92%, var(--fg));
-}
-.btn:active {
-  transform: scale(0.98);
-}
-.btn[data-variant="primary"] {
-  background: var(--fg);
-  color: var(--bg);
-  box-shadow: inset 0 1px 0 light-dark(rgb(255 255 255 / 0.18), rgb(255 255 255 / 0.6)), 0 1px 2px var(--drop);
-}
-.btn[data-variant="primary"]:hover {
-  background: color-mix(in srgb, var(--fg) 88%, var(--bg));
-}
 .icon-btn {
   display: inline-grid;
   place-items: center;
@@ -219,7 +186,7 @@ h2 {
   background: transparent;
   color: var(--fg-2);
   cursor: pointer;
-  transition: background 0.15s var(--ease), color 0.15s var(--ease);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.16s var(--ease);
 }
 .icon-btn:hover {
   background: var(--hover);
@@ -234,19 +201,6 @@ h2 {
   background: var(--ink-soft);
   color: var(--ink);
 }
-kbd {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 5px;
-  border-radius: 5px;
-  background: var(--raised);
-  box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 1px 0 var(--line-2);
-  font: 500 11px/1 var(--font-mono);
-  color: var(--fg-2);
-}
-
 /* Copy prompt: a quiet raised button in the top bar. */
 .copy-prompt {
   display: inline-flex;
@@ -262,37 +216,46 @@ kbd {
   color: var(--fg);
   font: 500 13px/1 var(--font-sans);
   cursor: pointer;
-  transition: box-shadow 0.15s var(--ease), transform 0.1s var(--ease);
+  transition: box-shadow 0.15s ease, transform 0.16s var(--ease);
 }
 .copy-prompt:hover {
   box-shadow: inset 0 1px 0 var(--hi), 0 0 0 1px var(--line-2), 0 2px 6px var(--drop);
 }
-.copy-prompt:active {
-  transform: scale(0.97);
+.copy-prompt:active,
+.icon-btn:active:not(:disabled) {
+  transform: scale(0.96);
 }
 .copy-prompt .icon {
   width: 14px;
   height: 14px;
   color: var(--fg-3);
 }
+/* Two states share one grid cell, so nothing shifts when they swap. Icons scale and unblur in. */
 .swap {
   display: inline-grid;
   justify-items: start;
+  align-items: center;
 }
 .swap > * {
   grid-area: 1 / 1;
-  transition: opacity 0.18s var(--ease), transform 0.18s var(--ease);
+  transition: opacity 0.2s var(--ease-swap), transform 0.2s var(--ease-swap), filter 0.2s var(--ease-swap);
 }
 .swap > :last-child,
-.copy-prompt[data-done] .swap > :first-child {
+[data-done] .swap > :first-child {
   opacity: 0;
   transform: translateY(3px);
 }
-.copy-prompt[data-done] .swap > :last-child {
+.swap > .icon:last-child,
+[data-done] .swap > .icon:first-child {
+  transform: scale(0.25);
+  filter: blur(4px);
+}
+[data-done] .swap > :last-child {
   opacity: 1;
   transform: none;
+  filter: none;
 }
-.copy-prompt[data-done] .icon {
+[data-done] .swap > .icon:last-child {
   color: var(--ok);
 }
 .sr-only {
@@ -310,8 +273,8 @@ kbd {
   align-items: center;
   gap: var(--space-3);
   max-width: 100%;
-  height: 46px;
-  padding: 0 6px 0 var(--space-4);
+  height: 44px;
+  padding: 0 7px 0 14px;
   border-radius: var(--radius-2);
   background: var(--raised);
   box-shadow: var(--elev-1);
@@ -345,7 +308,7 @@ kbd {
   padding-block: var(--space-8) var(--space-6);
 }
 .hero > * {
-  animation: rise 0.6s var(--ease) both;
+  animation: rise 0.5s var(--ease) both;
 }
 .hero > :nth-child(2) {
   animation-delay: 0.06s;
@@ -354,7 +317,7 @@ kbd {
   animation-delay: 0.12s;
 }
 .hero > :nth-child(4) {
-  animation-delay: 0.2s;
+  animation-delay: 0.18s;
 }
 @keyframes rise {
   from {
@@ -363,11 +326,12 @@ kbd {
   }
 }
 .demo {
-  margin-top: var(--space-7);
+  margin-top: 56px;
 }
 /* Bench: the live demo */
 .bench {
   position: relative;
+  padding: 6px;
   border-radius: var(--radius-3);
   background: var(--raised);
   box-shadow: var(--elev-2);
@@ -381,7 +345,9 @@ kbd {
 .stage {
   position: relative;
   overflow: hidden;
+  border-radius: 12px;
   background: var(--stage);
+  box-shadow: 0 0 0 1px light-dark(transparent, var(--line));
   touch-action: none;
   user-select: none;
 }
@@ -412,6 +378,7 @@ kbd {
 }
 .note-input {
   position: absolute;
+  transform-origin: top left;
   z-index: 5;
   display: flex;
   align-items: center;
@@ -467,10 +434,11 @@ kbd {
   background: #f4f4f5;
 }
 
-/* Tool buttons share one look; each chrome arranges them differently. */
+/* Dock tools: a label with its shortcut on hover. */
 .tool {
   position: relative;
 }
+@media (hover: hover) {
 .tool[data-label]:hover::after {
   content: attr(data-label);
   position: absolute;
@@ -485,6 +453,7 @@ kbd {
   white-space: nowrap;
   pointer-events: none;
 }
+}
 .sep {
   width: 1px;
   height: 18px;
@@ -493,9 +462,6 @@ kbd {
 }
 
 /* The dock floats half over the stage's bottom edge. */
-.stage {
-  border-radius: var(--radius-3) var(--radius-3) 0 0;
-}
 .dock {
   position: absolute;
   left: 50%;
@@ -513,16 +479,14 @@ kbd {
 .dock .icon-btn {
   width: 34px;
   height: 34px;
+  border-radius: 7px;
 }
 .dock-next {
   min-width: 170px;
-  padding: 0 var(--space-2);
+  padding: 0 10px 0 6px;
   font-size: 13px;
   color: var(--fg-2);
   white-space: nowrap;
-}
-.spec {
-  padding-top: 30px;
 }
 
 /* The idle invitation: a dashed box draws itself over a button while a cursor drags it open. */
@@ -596,20 +560,21 @@ kbd {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  padding-top: 28px;
 }
 .spec-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-2) 0 var(--space-4);
+  padding: var(--space-2) 4px 0 10px;
   font: 12px var(--font-mono);
   color: var(--fg-3);
 }
 .spec pre {
   flex: 1;
   margin: 0;
-  padding: var(--space-2) var(--space-4) var(--space-4);
+  padding: var(--space-1) 10px var(--space-4);
   overflow: auto;
   max-height: 280px;
   font: 12.5px/20px var(--font-mono);
@@ -619,16 +584,15 @@ kbd {
   color: var(--fg);
 }
 .spec .s {
-  color: var(--string);
+  color: var(--ink);
 }
 .status {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-1) var(--space-4);
-  padding: 10px var(--space-4);
-  border-radius: 0 0 var(--radius-3) var(--radius-3);
+  padding: 10px;
+  border-radius: 12px;
   background: var(--bg-2);
-  box-shadow: inset 0 1px var(--line);
   font: 12px/16px var(--font-mono);
   color: var(--fg-3);
 }
@@ -641,41 +605,47 @@ kbd {
 
 /* Sections */
 .section {
-  padding-block: var(--space-9) var(--space-6);
+  padding-top: 88px;
 }
 .section-lead {
-  margin: var(--space-2) 0 var(--space-6);
+  margin: var(--space-2) 0 var(--space-5);
   color: var(--fg-2);
 }
+/* Each figure grows by its image's aspect ratio (--r), so images in a row share one height. */
 .gallery {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--space-4);
 }
 .gallery figure {
+  flex: var(--r) 1 0;
+  min-width: 0;
   margin: 0;
-  padding: var(--space-2);
-  border-radius: var(--radius-3);
+  padding: 6px;
+  border-radius: 16px;
   background: var(--raised);
   box-shadow: var(--elev-1);
 }
 .gallery figure.wide {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
 }
 .gallery img {
   display: block;
   width: 100%;
   height: auto;
-  border-radius: var(--radius-2);
+  border-radius: 10px;
   background: var(--stage);
+  outline: 1px solid var(--outline);
+  outline-offset: -1px;
 }
 .gallery figcaption {
-  padding: var(--space-3) var(--space-2) var(--space-1);
+  padding: 10px 8px 4px;
   font-size: 13px;
-  color: var(--fg-2);
+  line-height: 20px;
+  color: var(--fg-3);
 }
 .footer {
-  margin-top: var(--space-8);
+  margin-top: var(--space-9);
   padding-block: var(--space-6) var(--space-8);
   box-shadow: inset 0 1px var(--line);
   font-size: 13px;
@@ -686,8 +656,8 @@ kbd {
 }
 
 @media (max-width: 900px) {
-  .gallery {
-    grid-template-columns: minmax(0, 1fr);
+  .gallery figure {
+    flex-basis: 100%;
   }
   .dock-next {
     display: none;
@@ -696,7 +666,10 @@ kbd {
     font-size: 36px;
   }
   .hero {
-    padding-block: var(--space-7) var(--space-6);
+    padding-block: var(--space-7) 0;
+  }
+  .section {
+    padding-top: var(--space-8);
   }
   .wrap {
     padding-inline: var(--space-4);

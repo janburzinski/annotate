@@ -9,6 +9,7 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
     <button
       type="button"
       className="icon-btn"
+      data-done={done || undefined}
       aria-label={done ? "Copied" : label}
       title={done ? "Copied" : label}
       onClick={() => {
@@ -17,7 +18,10 @@ export function CopyButton({ text, label = "Copy" }: { text: string; label?: str
         setTimeout(() => setDone(false), 1400);
       }}
     >
-      <Icon name={done ? "check" : "copy"} />
+      <span className="swap">
+        <Icon name="copy" />
+        <Icon name="check" />
+      </span>
     </button>
   );
 }
