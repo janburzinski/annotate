@@ -201,17 +201,13 @@ h2 {
   background: var(--ink-soft);
   color: var(--ink);
 }
-/* Copy prompt: a quiet raised button in the top bar. Its width eases between the two labels. */
-.copy-slot {
-  display: inline-flex;
-  justify-content: flex-end;
-  margin-left: var(--space-2);
-}
+/* Copy prompt: a quiet raised button in the top bar. Only its icon changes when copied. */
 .copy-prompt {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   height: 28px;
+  margin-left: var(--space-2);
   padding: 0 10px 0 8px;
   border: 0;
   border-radius: 8px;
@@ -233,11 +229,6 @@ h2 {
   width: 14px;
   height: 14px;
   color: var(--fg-3);
-}
-.copy-prompt .label {
-  overflow: hidden;
-  white-space: nowrap;
-  transition: width 0.25s var(--ease);
 }
 /* Two states share one grid cell, so nothing shifts when they swap. Icons scale and unblur in. */
 .swap {
