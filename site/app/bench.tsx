@@ -2,8 +2,9 @@
 
 import { parse } from "opentype.js";
 import { CopyButton } from "./copy";
+import { highlight } from "./highlight";
 import { Icon } from "./icons";
-import { type PointerEvent, type ReactNode, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { type PointerEvent, useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 // The CLI's own layout engine: the same code places these labels when an agent runs `annotate`.
 import { annotate, setFont } from "../../cli/src/render";
 import type { Mark, Note, Pixels } from "../../cli/src/types";
@@ -73,22 +74,6 @@ function specJson(shot: Shot, notes: Note[]) {
     return `    { ${parts.join(", ")} }`;
   };
   return `{\n  "image": ${JSON.stringify(shot.name)},\n  "notes": [\n${notes.map(note).join(",\n")}\n  ]\n}`;
-}
-
-function highlight(json: string): ReactNode[] {
-  const out: ReactNode[] = [];
-  let last = 0;
-  for (const m of json.matchAll(/"(?:[^"\\]|\\.)*"(\s*:)?/g)) {
-    out.push(json.slice(last, m.index));
-    out.push(
-      <span key={m.index} className={m[1] ? "k" : "s"}>
-        {m[0]}
-      </span>,
-    );
-    last = (m.index ?? 0) + m[0].length;
-  }
-  out.push(json.slice(last));
-  return out;
 }
 
 /** Draw on whatever the engine added since the last render: strokes trace, words fade in. */

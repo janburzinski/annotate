@@ -576,41 +576,112 @@ h2 {
   margin: var(--space-2) 0 var(--space-5);
   color: var(--fg-2);
 }
-/* Each figure grows by its image's aspect ratio (--r), so images in a row share one height. */
-.gallery {
-  display: flex;
-  flex-wrap: wrap;
+/* Examples: a bento grid. Tiles carry a faint wash of the ink; screenshots sit low and run off the bottom. */
+.bento {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-rows: 480px 460px;
+  grid-template-areas:
+    "a a a s s"
+    "c c d d d";
   gap: var(--space-4);
 }
-.gallery figure {
-  flex: var(--r) 1 0;
-  min-width: 0;
-  margin: 0;
-  padding: 6px;
-  border-radius: 16px;
-  background: var(--raised);
-  box-shadow: var(--elev-1);
-}
-.gallery figure.wide {
-  flex-basis: 100%;
-}
-.gallery img {
+.tile {
+  position: relative;
   display: block;
-  width: 100%;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  background:
+    radial-gradient(90% 70% at 0% 0%, var(--ink-soft), transparent 70%),
+    light-dark(oklch(0.975 0.004 265), oklch(0.19 0.006 265));
+  box-shadow: var(--elev-1);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+button.tile {
+  cursor: zoom-in;
+}
+.tile-text {
+  position: absolute;
+  top: 22px;
+  left: 24px;
+  right: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.tile-title {
+  font: 600 15px/22px var(--font-sans);
+  color: var(--fg);
+}
+.tile-file {
+  font: 500 13px/22px var(--font-mono);
+}
+.tile-body {
+  max-width: 38ch;
+  font-size: 14px;
+  line-height: 21px;
+  color: var(--fg-2);
+  text-wrap: pretty;
+}
+.tile-img {
+  position: absolute;
+  top: 112px;
+  left: 50%;
+  width: var(--iw, 74%);
   height: auto;
   border-radius: 10px;
   background: var(--stage);
   outline: 1px solid var(--outline);
   outline-offset: -1px;
+  box-shadow: 0 1px 2px var(--drop), 0 20px 40px -12px var(--drop-2);
+  translate: -50% 0;
+  transition: transform 0.3s var(--ease);
 }
-.zoom {
-  display: block;
-  width: 100%;
-  padding: 0;
-  border: 0;
-  border-radius: 10px;
-  background: none;
-  cursor: zoom-in;
+.tile[data-area="c"] .tile-img {
+  --iw: 80%;
+}
+.tile[data-area="d"] .tile-img {
+  --iw: 76%;
+}
+@media (hover: hover) {
+  .tile:hover .tile-img {
+    transform: translateY(-6px);
+  }
+}
+.tile-spec pre {
+  position: absolute;
+  top: 112px;
+  left: 20px;
+  right: 20px;
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--raised);
+  box-shadow: var(--elev-1);
+  overflow-x: auto;
+  font: 12px/19px var(--font-mono);
+  color: var(--fg-2);
+}
+.tile-run {
+  position: absolute;
+  left: 24px;
+  bottom: 22px;
+  font: 13px/20px var(--font-mono);
+  color: var(--fg-2);
+}
+.tile-run span {
+  color: var(--ink);
+  user-select: none;
+}
+.tile-spec .k {
+  color: var(--fg);
+}
+.tile-spec .s {
+  color: var(--ink);
 }
 
 /* Lightbox: the image grows out of its thumbnail (animated from gallery.tsx) over a dimmed page. */
@@ -681,12 +752,6 @@ html:has(.lightbox[open]) {
 }
 .lightbox[data-closing] .lightbox-close {
   opacity: 0;
-}
-.gallery figcaption {
-  padding: 10px 8px 4px;
-  font-size: 13px;
-  line-height: 20px;
-  color: var(--fg-3);
 }
 .footer {
   margin-top: var(--space-9);
@@ -762,8 +827,31 @@ html:has(.lightbox[open]) {
 }
 
 @media (max-width: 900px) {
-  .gallery figure {
-    flex-basis: 100%;
+  .bento {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 400px auto 460px 340px;
+    grid-template-areas: "a" "s" "c" "d";
+  }
+  .tile-spec {
+    min-height: 0;
+  }
+  .tile-spec pre {
+    position: static;
+    margin: 104px 12px 12px;
+    font-size: 10px;
+    line-height: 17px;
+  }
+  .tile-run {
+    position: static;
+    display: block;
+    margin: 0 24px 20px;
+  }
+  .tile[data-area="a"] .tile-img,
+  .tile[data-area="d"] .tile-img {
+    --iw: 86%;
+  }
+  .tile[data-area="c"] .tile-img {
+    --iw: 76%;
   }
   .dock-next {
     display: none;
